@@ -1,0 +1,165 @@
+"""
+Script to create Ganesha Pooja template in the database
+Run this from the backend directory: python create_ganesha_template.py
+"""
+import sys
+import json
+from pathlib import Path
+
+# Add parent directory to path
+sys.path.insert(0, str(Path(__file__).parent))
+
+from app.database import SessionLocal
+from app.models import SankalpamTemplate, Language
+
+def create_ganesha_template():
+    db = SessionLocal()
+    try:
+        # Check if template already exists
+        existing = db.query(SankalpamTemplate).filter(
+            SankalpamTemplate.name == "Ganesha Pooja Sankalpam (Telugu)"
+        ).first()
+        
+        if existing:
+            print("Template already exists! Updating it...")
+            # Update existing template
+            from app.services.template_service import identify_variables
+            variables = identify_variables(template_text)
+            
+            existing.template_text = template_text
+            existing.variables = json.dumps(variables)
+            existing.description = "Complete Ganesha Pooja Sankalpam with all rituals, mantras, and personalized variables"
+            
+            db.commit()
+            db.refresh(existing)
+            
+            print("SUCCESS: Ganesha Pooja template updated successfully!")
+            print(f"   Template ID: {existing.id}")
+            print(f"   Name: {existing.name}")
+            print(f"   Variables: {len(variables)} variables found")
+            print(f"   Variables list: {', '.join(variables)}")
+            return
+        
+        # Get first admin user or first user
+        from app.models import User
+        admin_user = db.query(User).filter(User.is_admin == True).first()
+        if not admin_user:
+            admin_user = db.query(User).first()
+        
+        if not admin_user:
+            print("Error: No users found in database. Please create a user first.")
+            return
+        
+        created_by_id = admin_user.id
+        
+        # Template text with variables - EDIT THIS SECTION TO UPDATE THE TEMPLATE
+        template_text = """**ప్రారంభ ఆవాహనలు:**
+ఇంద్రాది అష్టదిష్టక్పాలక దేవతాభ్యో నమః
+సీతారామాభ్యాం నమః
+మాతాపితృభ్యాం నమః
+సర్వే భ్యో మహాజనేభ్యో నమః
+
+ఆచమనం
+(అనంతరం ఆచమనం చేస్తూ అంటే కింది మంత్రాలు చదువుతూ కుడి అర చేతితో నీరు తీర్థంలాగ తాగాలి)
+
+విష్ణు నామావళి:
+ఓం కేశవాయ స్వాహా
+ఓం నారాయణ స్వాహా
+ఓం గోవిందాయ నమః
+ఓం శ్రీకృష్ణాయ నమః
+
+(అనంతరం నీటిని పైకి, పక్కలకు, వెనక్కివెద జల్లుతూ కింది శ్లోకం పఠించాలి)
+
+ఉత్తిష్ఠంతు భూత పిశాచాః యేతే భూమి భారకాః ఏతేషా మవిరోధేన బ్రహ్మకర్మ సమారభే
+
+(అక్షతలు కొన్ని వాసన చూసి ఎడమచేతి పక్క నుంచి వెనుక్కి వేసుకోవాలి. అనంతరం ప్రాణాయామం చేయాలి అంటే కుడి చేతి బొటన వేలు, మధ్య వేలితో రెండు ముక్కు రంధ్రాలను మూసి ఈ మంత్రాలు చదవాలి)
+
+ప్రాణాయామం:
+ఓం భూః ఓం భువః ఓం సువః ఓం జనః ఓం తపః ఓం సత్యం
+
+ఓం తత్సవితుర్వరేణ్యం భర్గో దేవస్య ధీమహి ధీయోయనః ప్రచోదయాత్
+
+ఓం ఆపో జ్యోతి రసోమృతం బ్రహ్మ భూర్భువస్సువరోమ్
+
+(అని మూడు సార్లు జపించాలి)
+
+(అనంతరం అక్షతలు తీసుకుని సంకల్పం చెప్పుకోవాలి)
+
+ సంకల్పము:
+
+శుభకరణే. {{user_name}} ({{gotram}} గోత్ర) అస్మాకం సహకుటుంబానాం ({{family_members}}) క్షేమ, స్థైర్య, ధైర్య, విజయ, ఆయురారోగ్య ఐశ్వర్యాభివృద్ధ్యర్థం, ధర్మ అర్థ కామ మోక్ష చతుర్విధ ఫల పురుషార్థ సిధ్యర్థం, ఇష్టకామ్యార్ధ సిద్ద్యర్థం, సర్వాపదా నివారణార్థం, సకల కార్యవిఘ్ననివారణార్థం.
+
+{{geographical_reference}} {{location_city}}, {{location_state}}, {{location_country}} లో {{nearby_river}} నది తీరే {{samvathsarE}} {{ayanam}} {{rithou}} {{mAsE}} {{pakshE}} {{thithou}} {{vAsara}} {{nakshatra}} {{yoga}} శుభయోగే {{pooja_name}} కరిష్యే.
+
+**కలశ పూజ:**
+(అనంతరం కలశపూజ చేయాలి. కలశం అంటే నీళ్ళు ఉండే పాత్రకు గంధం, కుంకుమ అలంకరించి అక్షతలు, పుష్పం వేసి ఎడమ అర చేతితో కింద పట్టుకొని కుడిఅరచేతితో పైన పట్టుకోని కింది శ్లోకాలు చదవాలి)
+
+తదంగ కలశ పూజాం కరిష్యే
+
+కలశస్య ముఖే విష్ణుః కంఠే రుద్ర స్సమాశ్రితః ।
+మూలే తత్ర స్థితో బ్రహ్మా మధ్యే మాతృగణాః స్మృతాః ॥
+
+కుక్షౌతు సాగరాస్సర్వే సప్త ద్వీపా వసుంధరా ।
+ఋగ్వేదో యజుర్వేదో స్సామవేదో అధర్వణః ॥
+
+ఉ… అంగై శ్చ సాహితాస్సర్వే కలశాంబు సమాశ్రితాః
+
+గంగేచ యమునే చైవ గోదావరీ సరస్వతీ
+నర్మదా సింధు కావేరి జలేస్మిన్ సన్నిధిం కురు
+
+కావేరీ తుంగభద్రాచ కృష్ణవేణ్యాచ గౌతమీ
+భాగీరథీ చ విఖ్యాతాః పంచగంగా ప్రకీర్తితాః
+
+మహా గణపతి పూజ:
+అయాంతు శ్రీ మహా గణాధిపతి పూజార్థం మమ దురితక్షయ కారకాః
+
+ఓం ఓం ఓం కలశోదకేన పూజా ద్రవ్యాణి సంప్రోక్ష్య,
+యడం దేవానాం సంప్రోక్ష, ఆత్మానాం చ సంప్రోక్ష్య ॥ సంతో
+
+ప్రాణ ప్రతిష్ట:
+(అనంతరం ప్రాణప్రతిష్ట చేయాలి.. అనగా పసుపు గణపతిపై కుడిచేతిని ఉంచి కింది మంత్రాలు చదవాలి)
+
+నిరడడం ఓం అసునీతే పునరస్మాసు చక్షుః
+పునః ప్రాణ మిహనో దేహిభోగం
+రండి జ్యోక్పశ్యేమ సూర్య ముచ్చరంత ర?
+రాము మనుమతే మృడయానః స్వస్తి
+అమృతం వై ప్రాణా అమృతమాపః
+చందడితడ్కంది. ప్రాణానేవ యథాస్తానముపహ్వయతే క్రింది
+ఓం మహాగణపతయే నమః"""
+
+        # Identify variables
+        from app.services.template_service import identify_variables
+        variables = identify_variables(template_text)
+        
+        # Create template
+        template = SankalpamTemplate(
+            name="Ganesha Pooja Sankalpam (Telugu)",
+            description="Complete Ganesha Pooja Sankalpam with all rituals, mantras, and personalized variables",
+            template_text=template_text,
+            language=Language.TELUGU,
+            variables=json.dumps(variables),
+            is_active=True,
+            created_by=created_by_id
+        )
+        
+        db.add(template)
+        db.commit()
+        db.refresh(template)
+        
+        print("SUCCESS: Ganesha Pooja template created successfully!")
+        print(f"   Template ID: {template.id}")
+        print(f"   Name: {template.name}")
+        print(f"   Variables: {len(variables)} variables found")
+        print(f"   Variables list: {', '.join(variables)}")
+        
+    except Exception as e:
+        db.rollback()
+        print(f"ERROR: Error creating template: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    create_ganesha_template()
+

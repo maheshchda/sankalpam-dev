@@ -1,0 +1,15 @@
+# Text-to-Speech dependencies
+# Install with: pip install -r requirements-tts.txt
+
+# For XTTS-v2 (Open Source Voice Cloning)
+TTS>=0.20.0
+
+# Optional: For better performance with GPU
+# torch>=1.13.0
+# torchaudio>=0.13.0
+
+# Note: XTTS-v2 requires PyTorch which is large
+# Install PyTorch separately based on your system:
+# CPU: pip install torch torchaudio
+# GPU (CUDA): pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu118
+

@@ -1,0 +1,107 @@
+'use client'
+
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import api from './api'
+
+interface User {
+  id: number
+  username: string
+  email: string
+  first_name: string
+  last_name: string
+  gotram?: string
+  birth_city?: string
+  birth_state?: string
+  birth_country?: string
+  birth_time?: string
+  email_verified: boolean
+  phone_verified: boolean
+  is_active: boolean
+  is_admin?: boolean
+}
+
+interface AuthContextType {
+  user: User | null
+  loading: boolean
+  login: (username: string, password: string) => Promise<User | null>
+  logout: () => void
+  register: (data: any) => Promise<void>
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    checkAuth()
+  }, [])
+
+  const checkAuth = async () => {
+    // Only check localStorage on client side
+    if (typeof window === 'undefined') {
+      setLoading(false)
+      return
+    }
+    
+    const token = localStorage.getItem('access_token')
+    if (token) {
+      try {
+        const response = await api.get('/api/auth/me')
+        setUser(response.data)
+      } catch (error) {
+        localStorage.removeItem('access_token')
+      }
+    }
+    setLoading(false)
+  }
+
+  const login = async (username: string, password: string) => {
+    // Use URLSearchParams for form-urlencoded data (required by OAuth2PasswordRequestForm)
+    const params = new URLSearchParams()
+    params.append('username', username)
+    params.append('password', password)
+    
+    const response = await api.post('/api/auth/login', params.toString(), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    })
+    
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('access_token', response.data.access_token)
+    }
+    // Fetch and update user state
+    const userResponse = await api.get('/api/auth/me')
+    const updatedUser = userResponse.data
+    setUser(updatedUser)
+    return updatedUser
+  }
+
+  const register = async (data: any) => {
+    await api.post('/api/auth/register', data)
+  }
+
+  const logout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('access_token')
+    }
+    setUser(null)
+  }
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, logout, register }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
+}
+
