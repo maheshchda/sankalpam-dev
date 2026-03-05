@@ -1,0 +1,66 @@
+SANKALPAM DEV – SIMPLE RESTART INSTRUCTIONS
+===========================================
+
+Project root:
+  C:\Projects\sankalpam-dev
+
+Backend:
+  C:\Projects\sankalpam-dev\backend
+
+Frontend:
+  C:\Projects\sankalpam-dev\frontend
+
+
+FOR ME (WHEN ASKING THE AI ASSISTANT)
+-------------------------------------
+When I say: "Restart backend and frontend for the sankalpam project",
+the assistant should do the following steps:
+
+1) (Optional) Make sure database (PostgreSQL via Docker) is running
+   - Working directory: C:\Projects\sankalpam-dev
+   - Command:
+       docker compose up -d
+
+2) Start backend server (API on port 8001)
+   - Working directory: C:\Projects\sankalpam-dev\backend
+   - Command:
+       cmd /c START-BACKEND.bat
+   - This activates the virtualenv and runs:
+       uvicorn main:app --reload --host 0.0.0.0 --port 8001
+   - Backend URL:
+       http://localhost:8001
+       http://localhost:8001/docs
+
+   - NOTE: Frontend is configured to talk to port 8001 by default via:
+       frontend\lib\api.ts  (API_URL = http://localhost:8001)
+
+3) Restart / start frontend server
+   a) Stop any existing Node.js dev servers
+      - Working directory: C:\Projects\sankalpam-dev
+      - Command (PowerShell):
+          powershell -Command "Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
+
+   b) Start Next.js dev server
+      - Working directory: C:\Projects\sankalpam-dev\frontend
+      - Command:
+          npm run dev
+      - Frontend URL:
+          http://localhost:3000
+
+
+ALTERNATIVE (ONE WINDOWS SCRIPT THAT STARTS BOTH)
+-------------------------------------------------
+There is also a helper batch file:
+  C:\Projects\sankalpam-dev\RESTART-APPLICATION.bat
+
+This script:
+  - Checks for a local PostgreSQL Windows service (not Docker)
+  - Starts backend in one CMD window
+  - Starts frontend in another CMD window
+
+To use it manually:
+  - Double–click RESTART-APPLICATION.bat in Explorer
+  - Or run from CMD:
+      cd /d C:\Projects\sankalpam-dev
+      RESTART-APPLICATION.bat
+

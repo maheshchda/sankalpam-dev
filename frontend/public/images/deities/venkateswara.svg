@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Venkateswara">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fffbeb"/>
+      <stop offset="100%" stop-color="#fcd34d"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <circle cx="600" cy="360" r="185" fill="#78350f" opacity="0.9"/>
+  <rect x="570" y="270" width="60" height="170" rx="28" fill="#fef3c7"/>
+  <circle cx="600" cy="245" r="28" fill="#fef3c7"/>
+  <text x="600" y="650" text-anchor="middle" font-size="66" font-family="Arial, sans-serif" fill="#451a03" font-weight="700">Venkateswara</text>
+  <text x="600" y="725" text-anchor="middle" font-size="38" font-family="Arial, sans-serif" fill="#78350f">Sri Venkata Ramana</text>
+</svg>

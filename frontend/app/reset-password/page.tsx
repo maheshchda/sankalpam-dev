@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'react-toastify'
 import Link from 'next/link'
-import { api } from '@/lib/api'
+import api from '@/lib/api'
 
 export default function ResetPasswordPage() {
   const [token, setToken] = useState('')

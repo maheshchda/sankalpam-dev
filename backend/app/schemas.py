@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List, Dict
+from pydantic import BaseModel, EmailStr, Field, field_validator
+from typing import Optional, List, Dict, Union
 from datetime import datetime, date
 from app.models import Language, Gender
 
@@ -13,9 +13,16 @@ class UserBase(BaseModel):
     birth_country: str = Field(..., min_length=1, max_length=100)
     birth_time: str = Field(..., pattern=r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$')  # 24 hour format
     birth_date: date
+    birth_nakshatra: Optional[str] = Field(None, max_length=50)  # Janma Nakshatra (Birth Star)
+    birth_rashi: Optional[str] = Field(None, max_length=50)  # Janma Raasi (Birth Zodiac Sign)
+    birth_pada: Optional[str] = Field(None, max_length=10)  # Janma Pada (1–4)
     preferred_language: Language = Language.SANSKRIT
     email: EmailStr
     phone: str = Field(..., min_length=10, max_length=20)
+    # Current address (optional; where user currently lives)
+    current_city: Optional[str] = Field(None, max_length=100)
+    current_state: Optional[str] = Field(None, max_length=100)
+    current_country: Optional[str] = Field(None, max_length=100)
 
 class UserCreate(UserBase):
     username: str = Field(..., min_length=3, max_length=50)
@@ -31,8 +38,27 @@ class UserUpdate(BaseModel):
     birth_country: Optional[str] = Field(None, min_length=1, max_length=100)
     birth_time: Optional[str] = Field(None, pattern=r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$')  # 24 hour format
     birth_date: Optional[date] = None
-    preferred_language: Optional[Language] = None
+    birth_nakshatra: Optional[str] = Field(None, max_length=50)  # Janma Nakshatra (Birth Star)
+    birth_rashi: Optional[str] = Field(None, max_length=50)  # Janma Raasi (Birth Zodiac Sign)
+    birth_pada: Optional[str] = Field(None, max_length=10)  # Janma Pada (1–4)
+    preferred_language: Optional[Union[Language, str]] = None  # Accept enum or ISO code (e.g. 'te') or name ('telugu')
     password: Optional[str] = Field(None, min_length=8, max_length=72)  # Optional password update
+    current_city: Optional[str] = Field(None, max_length=100)
+    current_state: Optional[str] = Field(None, max_length=100)
+    current_country: Optional[str] = Field(None, max_length=100)
+
+    @field_validator("preferred_language", mode="before")
+    @classmethod
+    def normalize_preferred_language(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, Language):
+            return v
+        s = (v if isinstance(v, str) else str(v)).strip().lower()
+        if not s:
+            return None
+        # Accept ISO 639-1 code (e.g. 'te') or full name (e.g. 'telugu')
+        return Language.from_code(s) if len(s) == 2 else Language(s) if s in [e.value for e in Language] else None
 
 class UserResponse(UserBase):
     id: int
@@ -50,11 +76,27 @@ class FamilyMemberBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     relation: str = Field(..., min_length=1, max_length=50)
     gender: Gender
-    date_of_birth: date
-    birth_time: str = Field(..., pattern=r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$')  # 24 hour format HH:MM
+    date_of_birth: Optional[date] = None
+    birth_time: Optional[str] = Field(None, pattern=r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$')  # 24 hour format HH:MM
+    birth_nakshatra: Optional[str] = Field(None, max_length=50)  # Janma Nakshatra (Birth Star)
+    birth_rashi: Optional[str] = Field(None, max_length=50)  # Janma Raasi (Birth Zodiac Sign)
+    birth_pada: Optional[str] = Field(None, max_length=10)  # Janma Pada (1–4)
     birth_city: str = Field(..., min_length=1, max_length=100)
     birth_state: str = Field(..., min_length=1, max_length=100)
     birth_country: str = Field(..., min_length=1, max_length=100)
+    is_deceased: bool = False
+    date_of_death: Optional[date] = None
+    time_of_death: Optional[str] = Field(None, pattern=r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$')
+    death_city: Optional[str] = Field(None, max_length=100)
+    death_state: Optional[str] = Field(None, max_length=100)
+    death_country: Optional[str] = Field(None, max_length=100)
+    # Panchang on the day of death (read-only from API; user can override)
+    death_tithi: Optional[str] = Field(None, max_length=100)
+    death_paksha: Optional[str] = Field(None, max_length=50)
+    death_nakshatra: Optional[str] = Field(None, max_length=100)
+    death_vara: Optional[str] = Field(None, max_length=50)
+    death_yoga: Optional[str] = Field(None, max_length=100)
+    death_karana: Optional[str] = Field(None, max_length=100)
 
 class FamilyMemberCreate(FamilyMemberBase):
     pass
@@ -63,7 +105,7 @@ class FamilyMemberResponse(FamilyMemberBase):
     id: int
     user_id: int
     created_at: datetime
-    
+
     model_config = {"from_attributes": True}
 
 # Pooja Schemas
@@ -136,11 +178,14 @@ class SankalpamRequest(BaseModel):
     location_country: str
     latitude: Optional[str] = None
     longitude: Optional[str] = None
+    timezone_offset_hours: Optional[float] = None  # e.g. -6 for US Central; from browser when possible
+    language_code: Optional[str] = None  # e.g. 'te', 'sa', 'hi' — overrides user profile for this request
 
 class SankalpamResponse(BaseModel):
     sankalpam_text: str
     nearby_river: str
     session_id: int
+    sankalpam_audio_url: Optional[str] = None  # e.g. /audio/uuid.mp3 when TTS succeeds
 
 # Template Schemas
 class SankalpamTemplateBase(BaseModel):

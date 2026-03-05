@@ -11,6 +11,8 @@ from app.schemas import UserCreate, UserResponse, Token, LoginRequest, Verificat
 from app.auth import verify_password, get_password_hash, create_access_token
 from app.dependencies import get_current_user
 from app.config import settings
+from app.services.email_service import send_verification_email, send_password_reset_email
+from app.services.sms_service import send_verification_sms
 
 router = APIRouter()
 
@@ -53,6 +55,9 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
             birth_country=user_data.birth_country,
             birth_time=user_data.birth_time,
             birth_date=user_data.birth_date,
+            birth_nakshatra=user_data.birth_nakshatra,
+            birth_rashi=user_data.birth_rashi,
+            birth_pada=user_data.birth_pada,
             preferred_language=user_data.preferred_language
         )
         
@@ -83,9 +88,9 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         
         db.commit()
         
-        # TODO: Send verification email and SMS
-        # send_verification_email(db_user.email, email_token)
-        # send_verification_sms(db_user.phone, phone_otp)
+        # Send verification email and SMS
+        send_verification_email(db_user.email, email_token)
+        send_verification_sms(db_user.phone, phone_otp)
         
         return db_user
     except HTTPException:
@@ -102,7 +107,11 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == form_data.username).first()
+    # Allow login with username or email
+    login_input = (form_data.username or "").strip()
+    user = db.query(User).filter(User.username == login_input).first()
+    if not user:
+        user = db.query(User).filter(User.email == login_input).first()
     
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
@@ -202,10 +211,8 @@ async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(
     db.add(db_reset_token)
     db.commit()
     
-    # TODO: Send password reset email with token
-    # For now, in development, you can check the token in the database
-    # In production, implement email sending:
-    # send_password_reset_email(user.email, reset_token)
+    # Send password reset email
+    send_password_reset_email(user.email, reset_token)
     
     return {
         "message": "If an account with that email exists, password reset instructions have been sent.",
@@ -257,3 +264,100 @@ async def reset_password(request: ResetPasswordRequest, db: Session = Depends(ge
     db.commit()
     
     return {"message": "Password has been reset successfully. You can now login with your new password."}
+
+@router.post("/resend-verification-email", status_code=status.HTTP_200_OK)
+async def resend_verification_email(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Resend email verification token.
+    In development mode, returns the token directly.
+    """
+    if current_user.email_verified:
+        return {"message": "Email is already verified"}
+    
+    # Invalidate any existing pending email tokens for this user
+    existing_tokens = db.query(VerificationToken).filter(
+        VerificationToken.user_id == current_user.id,
+        VerificationToken.token_type == "email",
+        VerificationToken.status == VerificationStatus.PENDING
+    ).all()
+    
+    for token in existing_tokens:
+        token.status = VerificationStatus.EXPIRED
+    db.commit()
+    
+    # Generate new email verification token
+    email_token = secrets.token_urlsafe(32)
+    db_email_token = VerificationToken(
+        user_id=current_user.id,
+        token=email_token,
+        token_type="email",
+        expires_at=datetime.utcnow() + timedelta(days=7)
+    )
+    db.add(db_email_token)
+    db.commit()
+    
+    # Send verification email
+    send_verification_email(current_user.email, email_token)
+    
+    # In development, return the token so user can verify
+    is_dev = settings.secret_key == "your-secret-key-change-in-production"
+    response = {
+        "message": "Verification email sent. Please check your inbox."
+    }
+    if is_dev:
+        response["token"] = email_token
+        response["verification_url"] = f"/verify?token={email_token}&type=email"
+        response["message"] = "Development mode: Use the token below to verify your email"
+    
+    return response
+
+@router.post("/resend-verification-phone", status_code=status.HTTP_200_OK)
+async def resend_verification_phone(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Resend phone verification OTP.
+    In development mode, returns the OTP directly.
+    """
+    if current_user.phone_verified:
+        return {"message": "Phone is already verified"}
+    
+    # Invalidate any existing pending phone tokens for this user
+    existing_tokens = db.query(VerificationToken).filter(
+        VerificationToken.user_id == current_user.id,
+        VerificationToken.token_type == "phone",
+        VerificationToken.status == VerificationStatus.PENDING
+    ).all()
+    
+    for token in existing_tokens:
+        token.status = VerificationStatus.EXPIRED
+    db.commit()
+    
+    # Generate new phone verification OTP
+    phone_otp = f"{secrets.randbelow(900000) + 100000:06d}"  # 6 digit OTP
+    db_phone_token = VerificationToken(
+        user_id=current_user.id,
+        token=phone_otp,
+        token_type="phone",
+        expires_at=datetime.utcnow() + timedelta(minutes=10)
+    )
+    db.add(db_phone_token)
+    db.commit()
+    
+    # Send verification SMS
+    send_verification_sms(current_user.phone, phone_otp)
+    
+    # In development, return the OTP so user can verify
+    is_dev = settings.secret_key == "your-secret-key-change-in-production"
+    response = {
+        "message": "Verification code sent to your phone. Please check your messages."
+    }
+    if is_dev:
+        response["otp"] = phone_otp
+        response["message"] = f"Development mode: Your OTP is {phone_otp}"
+    
+    return response

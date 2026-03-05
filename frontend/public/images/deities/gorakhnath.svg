@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Gorakhnath">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+    <linearGradient id="yogi" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#c2410c"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <!-- Mountain silhouette -->
+  <polygon points="0,600 400,250 600,400 800,200 1200,600" fill="#e2e8f0" opacity="0.6"/>
+  <!-- Crescent moon -->
+  <path d="M660 120 A100 100 0 1 1 720 240 A70 70 0 1 0 660 120Z" fill="#fef9c3" stroke="#fbbf24" stroke-width="4"/>
+  <!-- Dhuni (sacred fire) -->
+  <ellipse cx="600" cy="500" rx="60" ry="20" fill="#f97316" opacity="0.4"/>
+  <path d="M570,500 Q580,440 600,400 Q610,440 625,470 Q600,450 570,500Z" fill="#f97316" opacity="0.7"/>
+  <path d="M585,500 Q590,460 600,430 Q607,458 615,480 Q600,465 585,500Z" fill="#fbbf24" opacity="0.8"/>
+  <!-- Meditating yogi circle -->
+  <circle cx="600" cy="350" r="150" fill="url(#yogi)" opacity="0.88"/>
+  <!-- Yoga/lotus posture hint -->
+  <ellipse cx="600" cy="390" rx="80" ry="30" fill="#fff7ed" opacity="0.6"/>
+  <circle cx="600" cy="330" r="55" fill="#fff7ed" opacity="0.55"/>
+  <!-- Ash marks (three horizontal lines) -->
+  <rect x="565" y="320" width="70" height="8" rx="4" fill="#1e293b" opacity="0.5"/>
+  <rect x="565" y="336" width="70" height="8" rx="4" fill="#1e293b" opacity="0.5"/>
+  <rect x="565" y="352" width="70" height="8" rx="4" fill="#1e293b" opacity="0.5"/>
+  <text x="600" y="640" text-anchor="middle" font-size="72" font-family="Arial, sans-serif" fill="#1e293b" font-weight="700">Gorakhnath</text>
+  <text x="600" y="715" text-anchor="middle" font-size="38" font-family="Arial, sans-serif" fill="#334155">Nath Yogi Siddha</text>
+</svg>

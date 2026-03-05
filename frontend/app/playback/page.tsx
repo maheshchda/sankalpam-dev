@@ -62,7 +62,7 @@ export default function PlaybackPage() {
       
       // If audio URL exists, set it up
       if (sankalpamData.sankalpam_audio_url) {
-        setAudioUrl(`http://localhost:8000${sankalpamData.sankalpam_audio_url}`)
+        setAudioUrl(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${sankalpamData.sankalpam_audio_url}`)
       }
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to generate sankalpam')

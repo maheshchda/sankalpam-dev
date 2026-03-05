@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Rama">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#eff6ff"/>
+      <stop offset="100%" stop-color="#bfdbfe"/>
+    </linearGradient>
+    <linearGradient id="center" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <!-- Bow and arrow -->
+  <path d="M380 150 Q420 380 380 610" fill="none" stroke="#92400e" stroke-width="14" stroke-linecap="round"/>
+  <line x1="380" y1="155" x2="380" y2="605" stroke="#78350f" stroke-width="4" stroke-dasharray="12,8"/>
+  <!-- Arrow shaft -->
+  <line x1="420" y1="360" x2="780" y2="360" stroke="#b45309" stroke-width="8"/>
+  <polygon points="780,360 755,345 755,375" fill="#dc2626"/>
+  <!-- Feather fletch -->
+  <path d="M430 360 Q445 340 450 360 Q445 380 430 360Z" fill="#16a34a"/>
+  <!-- Divine orb -->
+  <circle cx="600" cy="340" r="155" fill="url(#center)" opacity="0.9"/>
+  <!-- Crown hint -->
+  <path d="M540 230 L560 195 L580 225 L600 185 L620 225 L640 195 L660 230 Z" fill="#fbbf24"/>
+  <!-- Om -->
+  <text x="600" y="375" text-anchor="middle" font-size="95" font-family="Arial, sans-serif" fill="#bfdbfe" opacity="0.85">P</text>
+  <text x="600" y="640" text-anchor="middle" font-size="72" font-family="Arial, sans-serif" fill="#1e3a8a" font-weight="700">Sri Rama</text>
+  <text x="600" y="715" text-anchor="middle" font-size="38" font-family="Arial, sans-serif" fill="#1d4ed8">Maryada Purushottama</text>
+</svg>

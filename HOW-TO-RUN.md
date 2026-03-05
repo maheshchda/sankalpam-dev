@@ -9,18 +9,18 @@ Open **PowerShell Terminal 1** and run:
 ```powershell
 cd "C:\Projects\sankalpam-dev\backend"
 .\venv\Scripts\Activate.ps1
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+uvicorn main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 **What you'll see:**
 - The virtual environment will activate (you'll see `(venv)` in your prompt)
-- The server will start and show: `Uvicorn running on http://0.0.0.0:8000`
+- The server will start and show: `Uvicorn running on http://0.0.0.0:8001`
 - Keep this terminal open while the application is running
 
 **Backend will be available at:**
-- API: http://localhost:8000
-- API Documentation: http://localhost:8000/docs
-- Alternative docs: http://localhost:8000/redoc
+- API: http://localhost:8001
+- API Documentation: http://localhost:8001/docs
+- Alternative docs: http://localhost:8001/redoc
 
 ---
 
@@ -63,7 +63,7 @@ To stop the servers:
 
 ### Backend won't start?
 - Make sure you activated the virtual environment: `.\venv\Scripts\Activate.ps1`
-- Check if port 8000 is already in use
+- Check if port 8001 is already in use
 - Verify Python is installed: `python --version`
 
 ### Frontend won't start?
@@ -72,9 +72,9 @@ To stop the servers:
 - Try deleting `node_modules` and running `npm install` again
 
 ### Port already in use?
-**Backend:** Change the port in the uvicorn command:
+**Backend:** (Default is 8001.) Use a different port and set `NEXT_PUBLIC_API_URL` in `frontend/.env.local` to match:
 ```powershell
-uvicorn main:app --reload --host 0.0.0.0 --port 8001
+uvicorn main:app --reload --host 0.0.0.0 --port 8002
 ```
 
 **Frontend:** Change the port:
@@ -93,19 +93,19 @@ npm run dev -- -p 3001
 
 **Terminal 1 - Backend:**
 ```powershell
-cd "C:\Projects\sankalpam-dev\backend" && .\venv\Scripts\Activate.ps1 && uvicorn main:app --reload --host 0.0.0.0 --port 8000
+cd "C:\Projects\sankalpam-dev\backend"; .\venv\Scripts\Activate.ps1; uvicorn main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 **Terminal 2 - Frontend:**
 ```powershell
-cd "C:\Projects\sankalpam-dev\frontend" && npm run dev
+cd "C:\Projects\sankalpam-dev\frontend"; npm run dev
 ```
 
 ---
 
 ## What Each Server Does
 
-- **Backend (Port 8000):** Handles API requests, database operations, business logic
+- **Backend (Port 8001):** Handles API requests, database operations, business logic
 - **Frontend (Port 3000):** Provides the user interface, makes requests to the backend API
 
 Both servers need to be running simultaneously for the application to work properly!

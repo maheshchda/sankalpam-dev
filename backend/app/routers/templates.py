@@ -14,7 +14,7 @@ from app.schemas import TemplateGenerateRequest, TemplateGenerateResponse
 from app.dependencies import get_current_active_user, get_current_user
 from app.services.template_service import get_all_variables, replace_template_variables
 from app.services.tts_service import text_to_speech
-from app.services.location_service import get_location_from_coordinates
+from app.services.location_service import get_location_from_coordinates, get_coordinates_from_place
 from app.config import settings
 router = APIRouter()
 
@@ -37,6 +37,22 @@ async def reverse_geocode_location(
             status_code=500,
             detail=f"Error reverse geocoding: {str(e)}"
         )
+
+
+@router.get("/forward-geocode")
+async def forward_geocode_location(
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    country: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Forward geocode: get latitude and longitude for a place (city, state, country).
+    Query params: city, state, country. Returns { latitude, longitude }.
+    """
+    result = await get_coordinates_from_place(city=city, state=state, country=country)
+    return result
+
 
 @router.post("/generate", response_model=TemplateGenerateResponse)
 async def generate_audio_from_template(

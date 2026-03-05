@@ -301,7 +301,8 @@ export default function SankalpamPage() {
 
       // Set generated Sankalpam data and automatically start playing
       if (response.data.audio_url) {
-        const audioUrl = `http://localhost:8000${response.data.audio_url}`
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        const audioUrl = `${baseUrl}${response.data.audio_url}`
         setGeneratedSankalpam({
           text: response.data.text,
           audioUrl: audioUrl

@@ -14,10 +14,18 @@ interface User {
   birth_state?: string
   birth_country?: string
   birth_time?: string
+  birth_date?: string
+  birth_nakshatra?: string
+  birth_rashi?: string
+  birth_pada?: string
+  current_city?: string
+  current_state?: string
+  current_country?: string
   email_verified: boolean
   phone_verified: boolean
   is_active: boolean
   is_admin?: boolean
+  preferred_language?: string
 }
 
 interface AuthContextType {
@@ -26,6 +34,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<User | null>
   logout: () => void
   register: (data: any) => Promise<void>
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -90,8 +99,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
+  const refreshUser = async () => {
+    if (typeof window === 'undefined') {
+      return
+    }
+    
+    const token = localStorage.getItem('access_token')
+    if (token) {
+      try {
+        const response = await api.get('/api/auth/me')
+        setUser(response.data)
+      } catch (error) {
+        // If refresh fails, user might be logged out
+        console.error('Failed to refresh user:', error)
+      }
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, register }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

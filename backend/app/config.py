@@ -12,10 +12,11 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     
-    # DivineAPI
-    # Support multiple .env variable names (case-insensitive)
-    divine_api_key: str = ""  # Can be set as Divine_API_Key or DIVINE_API_KEY in .env
-    divine_access_token: str = ""  # Can be set as Divine_Access_Token or DIVINE_ACCESS_TOKEN in .env
+    # DivineAPI (Indian API - Daily Panchang only; no separate Sankalpam API used)
+    # We use Find Panchang for tithi, nakshatra, yoga, karana. Sankalpam text is from our own templates.
+    # In Divine dashboard you may only see "Default Key" - use it for both key and token if only one is shown.
+    divine_api_key: str = ""  # .env: Divine_API_Key or DIVINE_API_KEY
+    divine_access_token: str = ""  # .env: Divine_Access_Token or DIVINE_ACCESS_TOKEN (Bearer token)
     divineapi_key: str = ""  # Legacy - will be set to divine_api_key if empty
     divineapi_base_url: str = "https://api.divineapi.com"
     
@@ -34,13 +35,19 @@ class Settings(BaseSettings):
     xtts_language: str = "hi"  # Language code: hi (Hindi/Sanskrit), en, etc.
     use_xtts: bool = False  # Set to True to use XTTS-v2 instead of other TTS services
     
-    # Email Service
-    email_service_api_key: str = ""
+    # Email Service (SMTP)
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""  # SMTP username (usually your email)
+    smtp_password: str = ""  # SMTP password or app password
     email_from: str = "noreply@sankalpam.com"
+    frontend_url: str = "http://localhost:3000"  # Frontend URL for verification links
     
-    # SMS Service
-    sms_service_api_key: str = ""
-    sms_from: str = ""
+    # SMS Service (Twilio)
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_from_number: str = ""  # Twilio phone number (E.164 format: +1234567890)
+    sms_from: str = ""  # Legacy - will be set to twilio_from_number if empty
     
     # File Storage
     upload_path: str = "uploads"
@@ -68,6 +75,10 @@ if env_divine_key and not settings.divine_api_key:
     settings.divine_api_key = env_divine_key
 if env_divine_token and not settings.divine_access_token:
     settings.divine_access_token = env_divine_token
+
+# If only API key is set (e.g. Divine dashboard shows only "Default Key"), use it as token too
+if settings.divine_api_key and not settings.divine_access_token:
+    settings.divine_access_token = settings.divine_api_key
 
 # Set legacy divineapi_key for backward compatibility
 if settings.divine_api_key and not settings.divineapi_key:

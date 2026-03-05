@@ -53,7 +53,7 @@ def create_ganesha_template():
         created_by_id = admin_user.id
         
         # Template text with variables - EDIT THIS SECTION TO UPDATE THE TEMPLATE
-        template_text = """**ప్రారంభ ఆవాహనలు:**
+        template_text = """ప్రారంభ ఆవాహనలు:
 ఇంద్రాది అష్టదిష్టక్పాలక దేవతాభ్యో నమః
 సీతారామాభ్యాం నమః
 మాతాపితృభ్యాం నమః

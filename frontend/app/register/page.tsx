@@ -38,6 +38,8 @@ export default function RegisterPage() {
     birth_country: 'India',
     birth_date: '',
     birth_time: '',
+    birth_nakshatra: '',
+    birth_rashi: '',
     preferred_language: 'sanskrit',
   })
 
@@ -255,6 +257,28 @@ export default function RegisterPage() {
                   required
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
                   value={formData.birth_country}
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Janma Nakshatra (Birth Star)</label>
+                <input
+                  type="text"
+                  name="birth_nakshatra"
+                  placeholder="e.g., Ashwini, Bharani, Krittika"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                  value={formData.birth_nakshatra}
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Janma Raasi (Birth Zodiac Sign)</label>
+                <input
+                  type="text"
+                  name="birth_rashi"
+                  placeholder="e.g., Mesha, Vrishabha, Mithuna"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                  value={formData.birth_rashi}
                   onChange={handleChange}
                 />
               </div>

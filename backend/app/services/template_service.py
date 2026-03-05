@@ -73,10 +73,19 @@ async def get_all_variables(
     variables: Dict[str, str] = {}
     
     # User variables
-    variables["user_name"] = f"{user.first_name} {user.last_name}"
-    variables["user_first_name"] = user.first_name
-    variables["user_last_name"] = user.last_name
-    variables["gotram"] = user.gotram
+    template_lang_lower = (template_language or "").strip().lower()
+    is_telugu = template_lang_lower in ("te", "telugu")
+    if is_telugu:
+        from app.services.divineapi_service import _latin_name_to_telugu, _english_to_telugu, _TE_RELATION as _TE_REL
+        variables["user_first_name"] = _latin_name_to_telugu(user.first_name)
+        variables["user_last_name"] = _latin_name_to_telugu(user.last_name)
+        variables["user_name"] = f"{variables['user_first_name']} {variables['user_last_name']}"
+        variables["gotram"] = _latin_name_to_telugu(user.gotram or "")
+    else:
+        variables["user_first_name"] = user.first_name
+        variables["user_last_name"] = user.last_name
+        variables["user_name"] = f"{user.first_name} {user.last_name}"
+        variables["gotram"] = user.gotram
     variables["birth_place"] = f"{user.birth_city}, {user.birth_state}, {user.birth_country}"
     variables["birth_city"] = user.birth_city
     variables["birth_state"] = user.birth_state
@@ -189,10 +198,15 @@ async def get_all_variables(
         # Final fallback
         variables["geographical_feature"] = ""
     
-    # Family members
+    # Family members (names and relations in selected language when Telugu)
     family_list = []
     for member in family_members:
-        family_list.append(f"{member.name} ({member.relation})")
+        if is_telugu:
+            name_te = _latin_name_to_telugu(member.name)
+            rel_te = _english_to_telugu((member.relation or "").strip(), _TE_REL) or (member.relation or "")
+            family_list.append(f"{name_te} ({rel_te})")
+        else:
+            family_list.append(f"{member.name} ({member.relation})")
     variables["family_members"] = ", ".join(family_list) if family_list else "None"
     variables["family_members_count"] = str(len(family_members))
     

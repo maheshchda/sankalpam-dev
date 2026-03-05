@@ -1,17 +1,27 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import api from '@/lib/api'
 import { toast } from 'react-toastify'
 
 export default function VerifyPage() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const [emailToken, setEmailToken] = useState('')
   const [phoneToken, setPhoneToken] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Check for token in URL parameters
+  useEffect(() => {
+    const token = searchParams.get('token')
+    const type = searchParams.get('type')
+    if (token && type === 'email') {
+      setEmailToken(token)
+    }
+  }, [searchParams])
 
   const handleEmailVerify = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,6 +33,10 @@ export default function VerifyPage() {
       })
       toast.success('Email verified successfully!')
       setEmailToken('')
+      // Refresh user data to reflect verification status
+      if (refreshUser) {
+        await refreshUser()
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Email verification failed')
     } finally {
@@ -40,6 +54,10 @@ export default function VerifyPage() {
       })
       toast.success('Phone verified successfully!')
       setPhoneToken('')
+      // Refresh user data to reflect verification status
+      if (refreshUser) {
+        await refreshUser()
+      }
       // Redirect admins to admin portal, regular users to dashboard
       if (user?.is_admin) {
         router.push('/admin')

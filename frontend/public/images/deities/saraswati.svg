@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Saraswati">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <circle cx="600" cy="360" r="185" fill="#334155" opacity="0.86"/>
+  <rect x="500" y="330" width="200" height="20" rx="10" fill="#f8fafc"/>
+  <rect x="520" y="370" width="160" height="18" rx="9" fill="#f8fafc"/>
+  <text x="600" y="650" text-anchor="middle" font-size="72" font-family="Arial, sans-serif" fill="#0f172a" font-weight="700">Saraswati</text>
+  <text x="600" y="725" text-anchor="middle" font-size="38" font-family="Arial, sans-serif" fill="#334155">Vidya Dayini</text>
+</svg>

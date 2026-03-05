@@ -15,11 +15,24 @@ GEOGRAPHICAL_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "india": "భారతదేశం",
         "bharat": "భారతదేశం",
         
-        # US States
+        # US States (include abbreviations for lookup)
         "texas": "టెక్సాస్",
+        "tx": "టెక్సాస్",
         "florida": "ఫ్లోరిడా",
+        "fl": "ఫ్లోరిడా",
+        "ca": "కాలిఫోర్నియా",
+        "ny": "న్యూయార్క్",
+        "us": "అమెరికా",
+        "u.s.": "అమెరికా",
+        "u.s.a.": "అమెరికా",
         "california": "కాలిఫోర్నియా",
         "new york": "న్యూయార్క్",
+        # Indian states
+        "telangana": "తెలంగాణ",
+        "andhra pradesh": "ఆంధ్రప్రదేశ్",
+        "karnataka": "కర్నాటక",
+        "tamil nadu": "తమిళనాడు",
+        "maharashtra": "మహారాష్ట్ర",
         
         # Rivers
         "brazos": "బ్రాజోస్",

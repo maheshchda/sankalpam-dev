@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Hanuman">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fff7ed"/>
+      <stop offset="100%" stop-color="#fed7aa"/>
+    </linearGradient>
+    <linearGradient id="center" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#ea580c"/>
+      <stop offset="100%" stop-color="#9a3412"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <!-- Gada (mace) -->
+  <rect x="760" y="200" width="30" height="300" rx="8" fill="#92400e"/>
+  <ellipse cx="775" cy="190" rx="45" ry="55" fill="#b45309"/>
+  <ellipse cx="775" cy="185" rx="38" ry="42" fill="#d97706"/>
+  <!-- Mountain hint -->
+  <polygon points="100,620 350,320 500,450 650,280 800,400 1100,620" fill="#fed7aa" opacity="0.5"/>
+  <!-- Flying tail curve -->
+  <path d="M650 500 Q800 520 820 460 Q850 380 780 350" fill="none" stroke="#92400e" stroke-width="18" stroke-linecap="round"/>
+  <!-- Divine orb -->
+  <circle cx="560" cy="340" r="160" fill="url(#center)" opacity="0.9"/>
+  <!-- Devotion heart / Ram in hindi -->
+  <text x="560" y="295" text-anchor="middle" font-size="52" font-family="Arial, sans-serif" fill="#fff7ed" opacity="0.9">=O</text>
+  <text x="560" y="380" text-anchor="middle" font-size="60" font-family="Arial, sans-serif" fill="#fff7ed" opacity="0.9">0>.</text>
+  <text x="600" y="640" text-anchor="middle" font-size="72" font-family="Arial, sans-serif" fill="#7c2d12" font-weight="700">Hanuman</text>
+  <text x="600" y="715" text-anchor="middle" font-size="38" font-family="Arial, sans-serif" fill="#9a3412">Sri Anjaneya</text>
+</svg>

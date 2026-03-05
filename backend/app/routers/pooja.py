@@ -1,20 +1,28 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from app.database import get_db
 from app.models import User, Pooja, PoojaSession
 from app.schemas import PoojaResponse, PoojaSessionCreate, PoojaSessionResponse
 from app.dependencies import get_current_user, get_current_active_user
+from app.services.divineapi_service import get_poojas_available_for_language
 
 router = APIRouter()
 
 @router.get("/list", response_model=List[PoojaResponse])
 async def get_poojas(
+    language_code: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """
+    List active poojas. If language_code is provided, only poojas that have
+    a sankalpam template for that language are returned (e.g. Telugu -> only Ganesh Pooja).
+    """
     poojas = db.query(Pooja).filter(Pooja.is_active == True).all()
+    if language_code and language_code.strip():
+        poojas = get_poojas_available_for_language(language_code.strip(), poojas)
     return poojas
 
 @router.get("/{pooja_id}", response_model=PoojaResponse)

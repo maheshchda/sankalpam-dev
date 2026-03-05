@@ -379,3 +379,42 @@ async def get_location_from_coordinates(lat: str, lon: str) -> dict:
         traceback.print_exc()
     
     return {"city": "", "state": "", "country": ""}
+
+
+async def get_coordinates_from_place(
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    country: Optional[str] = None,
+) -> Dict[str, Optional[str]]:
+    """
+    Forward geocode: get latitude and longitude for a place (city, state, country).
+    Uses Nominatim (OpenStreetMap). Returns {"latitude": str or None, "longitude": str or None}.
+    """
+    result: Dict[str, Optional[str]] = {"latitude": None, "longitude": None}
+    city = (city or "").strip()
+    state = (state or "").strip()
+    country = (country or "").strip()
+    if not city and not state and not country:
+        return result
+    query = ", ".join(filter(None, [city, state, country]))
+    if not query:
+        return result
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            url = "https://nominatim.openstreetmap.org/search"
+            params = {"q": query, "format": "json", "limit": "1"}
+            headers = {"User-Agent": "SankalpamApp/1.0"}
+            response = await client.get(url, params=params, headers=headers)
+        if response.status_code != 200:
+            return result
+        data = response.json()
+        if data and isinstance(data, list) and len(data) > 0:
+            first = data[0]
+            lat = first.get("lat")
+            lon = first.get("lon")
+            if lat is not None and lon is not None:
+                result["latitude"] = str(lat)
+                result["longitude"] = str(lon)
+    except Exception as e:
+        print(f"Forward geocode error: {e}")
+    return result

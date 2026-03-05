@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import api from '@/lib/api'
 import Link from 'next/link'
+import PanchangTicker from '@/components/PanchangTicker'
 
 interface FamilyMember {
   id: number
@@ -62,6 +63,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100">
+      <PanchangTicker />
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
@@ -70,11 +72,11 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-gray-700">Welcome, {user.first_name}!</span>
-              <Link href="/sankalpam" className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700">
-                Generate Sankalpam
+              <Link href="/profile" className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200">
+                Profile
               </Link>
-              <Link href="/pooja" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                Select Pooja
+              <Link href="/pooja-calendar" className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700">
+                Pooja Calendar
               </Link>
               <button
                 onClick={() => {
@@ -128,16 +130,10 @@ export default function DashboardPage() {
                 Add Family Member
               </Link>
               <Link
-                href="/sankalpam"
+                href="/pooja-calendar"
                 className="block px-4 py-2 bg-amber-100 rounded-md hover:bg-amber-200 font-medium"
               >
-                Generate Sankalpam
-              </Link>
-              <Link
-                href="/pooja"
-                className="block px-4 py-2 bg-gray-100 rounded-md hover:bg-gray-200"
-              >
-                Select Pooja
+                Pooja Calendar
               </Link>
             </div>
           </div>

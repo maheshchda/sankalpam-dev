@@ -1,5 +1,6 @@
 import axios from 'axios'
 
+// Default to local backend on port 8000 unless overridden by env
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 const api = axios.create({
@@ -20,12 +21,13 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Handle token expiration
+// Handle token expiration (don't redirect on login endpoint 401 so user sees error)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      if (typeof window !== 'undefined') {
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
+      const isLoginRequest = error.config?.url?.includes('/api/auth/login')
+      if (!isLoginRequest) {
         localStorage.removeItem('access_token')
         window.location.href = '/login'
       }

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Subramanya">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fef3c7"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+    <linearGradient id="centerGrad" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#dc2626"/>
+      <stop offset="100%" stop-color="#991b1b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <!-- Peacock feather eye motifs in background -->
+  <ellipse cx="300" cy="200" rx="60" ry="90" fill="#10b981" opacity="0.25"/>
+  <ellipse cx="300" cy="200" rx="32" ry="50" fill="#3b82f6" opacity="0.3"/>
+  <ellipse cx="300" cy="200" rx="14" ry="22" fill="#1d4ed8" opacity="0.5"/>
+  <ellipse cx="900" cy="200" rx="60" ry="90" fill="#10b981" opacity="0.25"/>
+  <ellipse cx="900" cy="200" rx="32" ry="50" fill="#3b82f6" opacity="0.3"/>
+  <ellipse cx="900" cy="200" rx="14" ry="22" fill="#1d4ed8" opacity="0.5"/>
+  <!-- Spear (Vel) -->
+  <line x1="600" y1="120" x2="600" y2="520" stroke="#b45309" stroke-width="10"/>
+  <polygon points="600,80 575,150 625,150" fill="#dc2626"/>
+  <!-- Main orb -->
+  <circle cx="600" cy="370" r="160" fill="url(#centerGrad)" opacity="0.92"/>
+  <!-- Om symbol suggestion -->
+  <text x="600" y="400" text-anchor="middle" font-size="110" font-family="Arial, sans-serif" fill="#fff7ed" opacity="0.85">P</text>
+  <text x="600" y="640" text-anchor="middle" font-size="72" font-family="Arial, sans-serif" fill="#7c2d12" font-weight="700">Subramanya</text>
+  <text x="600" y="715" text-anchor="middle" font-size="38" font-family="Arial, sans-serif" fill="#92400e">Sri Murugan</text>
+</svg>

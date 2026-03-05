@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Lakshmi">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fdf2f8"/>
+      <stop offset="100%" stop-color="#f9a8d4"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <circle cx="600" cy="360" r="185" fill="#be185d" opacity="0.88"/>
+  <path d="M600 260l45 85 95 15-68 70 16 98-88-42-88 42 16-98-68-70 95-15z" fill="#fdf2f8"/>
+  <text x="600" y="650" text-anchor="middle" font-size="72" font-family="Arial, sans-serif" fill="#831843" font-weight="700">Lakshmi</text>
+  <text x="600" y="725" text-anchor="middle" font-size="38" font-family="Arial, sans-serif" fill="#9d174d">Sri Mahalakshmi</text>
+</svg>

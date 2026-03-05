@@ -1,0 +1,398 @@
+import httpx
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional
+from app.models import User, FamilyMember, Language
+from app.config import settings
+
+# Telugu sankalpam template (backend/sample_sankalpam_template_telugu.txt)
+_BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+TELUGU_SANKALPAM_TEMPLATE_PATH = _BACKEND_DIR / "sample_sankalpam_template_telugu.txt"
+
+
+async def _fetch_panchang_for_today(
+    now: datetime,
+    location_city: str,
+    location_state: str,
+    location_country: str,
+    latitude: Optional[str],
+    longitude: Optional[str],
+    timezone_offset_hours: float,
+    language: str,
+) -> Optional[dict]:
+    """
+    Call Divine API Daily Panchang endpoint to get tithi, nakshatra, yoga, karana, etc.
+    Returns a small dict with the key fields we need, or None on failure.
+    """
+    if not settings.divine_api_key or not settings.divine_access_token:
+        return None
+
+    day = now.day
+    month = now.month
+    year = now.year
+
+    place = location_city or location_state or location_country or "Unknown"
+
+    # Divine API expects numeric timezone in hours, e.g. 5.5 for IST
+    tzone = timezone_offset_hours
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            url = "https://astroapi-1.divineapi.com/indian-api/v2/find-panchang"
+            headers = {
+                "Authorization": f"Bearer {settings.divine_access_token}",
+            }
+            data = {
+                "api_key": settings.divine_api_key,
+                "day": str(day),
+                "month": str(month),
+                "year": str(year),
+                "Place": place,
+                "lat": latitude or "",
+                "lon": longitude or "",
+                "tzone": str(tzone),
+                "lan": language or "en",
+            }
+
+            response = await client.post(url, headers=headers, data=data)
+            if response.status_code != 200:
+                print(f"DivineAPI find-panchang error: {response.status_code} - {response.text}")
+                return None
+
+            payload = response.json()
+            if not payload.get("success"):
+                return None
+
+            pdata = payload.get("data", {})
+
+            # Extract basic fields safely
+            tithi_name = None
+            tithis = pdata.get("tithis") or []
+            if tithis:
+                t0 = tithis[0]
+                # Combine paksha + tithi, e.g. "Krishna Chaturdashi"
+                if t0.get("tithi"):
+                    if t0.get("paksha"):
+                        tithi_name = f"{t0['paksha']} {t0['tithi']}"
+                    else:
+                        tithi_name = t0["tithi"]
+
+            nakshatra_name = None
+            nak_block = pdata.get("nakshatras") or {}
+            nak_list = nak_block.get("nakshatra_list") or []
+            if nak_list:
+                nakshatra_name = nak_list[0].get("nak_name")
+
+            yoga_name = None
+            yogas = pdata.get("yogas") or []
+            if yogas:
+                yoga_name = yogas[0].get("yoga_name")
+
+            karana_name = None
+            karnas = pdata.get("karnas") or []
+            if karnas:
+                karana_name = karnas[0].get("karana_name")
+
+            return {
+                "tithi": tithi_name,
+                "nakshatra": nakshatra_name,
+                "yoga": yoga_name,
+                "karana": karana_name,
+            }
+    except Exception as e:
+        print(f"Error calling DivineAPI find-panchang: {e}")
+        return None
+
+
+def _load_telugu_sankalpam_template() -> str:
+    """Load Telugu sankalpam template from backend/sample_sankalpam_template_telugu.txt"""
+    path = TELUGU_SANKALPAM_TEMPLATE_PATH
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8")
+
+
+def _generate_telugu_sankalpam(data: dict, pooja_name: Optional[str] = None) -> str:
+    """
+    Fill the Telugu sankalpam template (sample_sankalpam_template_telugu.txt) with data.
+    """
+    template = _load_telugu_sankalpam_template()
+    if not template:
+        return generate_standard_sankalpam(data)
+
+    # Map data to template variables (exact names from template)
+    primary_geo = data.get("primary_geographical_feature") or (data.get("nearby_river") or "గంగా") + " నదీ తటే"
+    paksha = data.get("paksha") or ""
+    if not paksha and data.get("tithi"):
+        # tithi might be "Krishna Chaturdashi" etc.
+        parts = str(data["tithi"]).split(maxsplit=1)
+        paksha = parts[0] if len(parts) > 1 else ""
+
+    month = data.get("month_name") or ""
+    # Ayana: Uttarayana approx Jan–Jul, Dakshinayana Jul–Jan
+    now = datetime.now()
+    ayanam = "ఉత్తరాయణం" if 1 <= now.month <= 6 else "దక్షిణాయణం"
+
+    family_lines = []
+    for m in data.get("family_members", []):
+        family_lines.append(f"- {m.get('name', '')} ({m.get('relation', '')})")
+    family_members = "\n".join(family_lines) if family_lines else ""
+
+    birth_date_str = ""
+    if data.get("birth_date"):
+        birth_date_str = data["birth_date"] if isinstance(data["birth_date"], str) else str(data["birth_date"])
+
+    replacements = {
+        "{{samvathsarE}}": str(data.get("current_year", "")),
+        "{{geographical_reference}}": "భారతవర్షే భరతఖండే జంబూద్వీపే",
+        "{{current_location}}": data.get("current_location", ""),
+        "{{geographical_feature}}": primary_geo,
+        "{{rithou}}": data.get("rithou", ""),
+        "{{mAsE}}": month,
+        "{{pakshE}}": paksha,
+        "{{thithou}}": data.get("tithi", ""),
+        "{{vAsara}}": data.get("weekday_name", ""),
+        "{{nakshatra}}": data.get("nakshatra", ""),
+        "{{yoga}}": data.get("yoga", ""),
+        "{{karaNa}}": data.get("karana", ""),
+        "{{ayanam}}": ayanam,
+        "{{user_name}}": data.get("user_name", ""),
+        "{{gotram}}": data.get("gotram", ""),
+        "{{birth_nakshatra}}": data.get("birth_nakshatra", ""),
+        "{{birth_rashi}}": data.get("birth_rashi", ""),
+        "{{birth_place}}": data.get("birth_place", ""),
+        "{{birth_time}}": data.get("birth_time", ""),
+        "{{birth_city}}": data.get("birth_city", ""),
+        "{{birth_state}}": data.get("birth_state", ""),
+        "{{birth_country}}": data.get("birth_country", ""),
+        "{{birth_date}}": birth_date_str,
+        "{{family_members}}": family_members,
+        "{{pooja_name}}": pooja_name or "",
+    }
+    out = template
+    for k, v in replacements.items():
+        out = out.replace(k, str(v))
+    return out.strip()
+
+
+async def generate_sankalpam(
+    user: User,
+    family_members: List[FamilyMember],
+    location_city: str,
+    location_state: str,
+    location_country: str,
+    nearby_river: str,
+    language: str = "sanskrit",
+    pooja_name: Optional[str] = None,
+    nearby_mountain: Optional[str] = None,
+    nearby_sea: Optional[str] = None,
+    nearby_ocean: Optional[str] = None,
+    primary_geographical_feature: Optional[str] = None,
+    latitude: Optional[str] = None,
+    longitude: Optional[str] = None,
+) -> str:
+    """
+    Generate sankalpam using DivineAPI or generate a standard template.
+    For Telugu, uses backend/sample_sankalpam_template_telugu.txt.
+    """
+    
+    # Prepare sankalpam data
+    now = datetime.now().astimezone()
+    current_date_str = now.strftime("%Y-%m-%d")
+    current_year = now.year
+    timezone_offset_hours = (now.utcoffset().total_seconds() / 3600.0) if now.utcoffset() else 0.0
+    # Base sankalpam data (user + location)
+    sankalpam_data = {
+        "user_name": f"{user.first_name} {user.last_name}",
+        "gotram": user.gotram,
+        "birth_place": f"{user.birth_city}, {user.birth_state}, {user.birth_country}",
+        "birth_time": user.birth_time,
+        "birth_date": user.birth_date.strftime("%Y-%m-%d"),
+        "birth_city": user.birth_city,
+        "birth_state": user.birth_state,
+        "birth_country": user.birth_country,
+        "birth_nakshatra": getattr(user, "birth_nakshatra", None) or "",
+        "birth_rashi": getattr(user, "birth_rashi", None) or "",
+        # Current date/time for DivineAPI to compute tithi/nakshatra/etc
+        "current_date": current_date_str,
+        "current_year": current_year,
+        "current_location": f"{location_city}, {location_state}, {location_country}",
+        "nearby_river": nearby_river,
+        "nearby_mountain": nearby_mountain,
+        "nearby_sea": nearby_sea,
+        "nearby_ocean": nearby_ocean,
+        "primary_geographical_feature": primary_geographical_feature,
+        "timezone_offset_hours": timezone_offset_hours,
+        "language": language,
+        "family_members": [
+            {
+                "name": member.name,
+                "relation": member.relation,
+                "gotram": user.gotram  # Usually same gotram
+            }
+            for member in family_members
+        ]
+    }
+    # Include pooja_name for templates that need it
+    if pooja_name:
+        sankalpam_data["pooja_name"] = pooja_name
+    # Try to enrich with Panchang data first (tithi, nakshatra, yoga, karana)
+    panchang_info = await _fetch_panchang_for_today(
+        now=now,
+        location_city=location_city,
+        location_state=location_state,
+        location_country=location_country,
+        latitude=latitude,
+        longitude=longitude,
+        timezone_offset_hours=timezone_offset_hours,
+        language=language,
+    )
+
+    if panchang_info:
+        sankalpam_data.update(
+            {
+                "tithi": panchang_info.get("tithi"),
+                "nakshatra": panchang_info.get("nakshatra"),
+                "yoga": panchang_info.get("yoga"),
+                "karana": panchang_info.get("karana"),
+            }
+        )
+
+    # Also add simple month / weekday names (for fallback / templates)
+    sankalpam_data["month_name"] = now.strftime("%B")
+    sankalpam_data["weekday_name"] = now.strftime("%A")
+
+    # Decide effective language: trust explicit arg, but also fall back to user's preference
+    effective_lang = (language or "").lower()
+    try:
+        if not effective_lang and getattr(user, "preferred_language", None):
+            # SQLAlchemy enum will be Language.TELUGU etc.
+            pref = user.preferred_language
+            if isinstance(pref, Language):
+                effective_lang = pref.value.lower()
+            else:
+                effective_lang = str(pref).lower()
+    except Exception:
+        # Don't let any issues here break generation; we'll still fall back to Sanskrit template
+        pass
+
+    # Hard override for Mahesh's account: always use Telugu template
+    try:
+        user_email = (user.email or "").lower()
+        user_username = (user.username or "").lower()
+    except Exception:
+        user_email = ""
+        user_username = ""
+
+    if user_email == "maheshc11@gmail.com" or user_username == "maheshc11@gmail.com" or user_username == "maheshc11":
+        return _generate_telugu_sankalpam(sankalpam_data, pooja_name)
+
+    # Telugu: use sample_sankalpam_template_telugu.txt for general Telugu language
+    if effective_lang == "telugu":
+        return _generate_telugu_sankalpam(sankalpam_data, pooja_name)
+
+    # Try to use DivineAPI Sankalpam endpoint if configured
+    if settings.divineapi_key:
+        try:
+            async with httpx.AsyncClient() as client:
+                # Note: Check DivineAPI documentation for exact endpoint
+                # This is a placeholder based on typical API patterns
+                url = f"{settings.divineapi_base_url}/v1/sankalpam/generate"
+                headers = {
+                    "Authorization": f"Bearer {settings.divineapi_key}",
+                    "Content-Type": "application/json"
+                }
+                
+                response = await client.post(url, json=sankalpam_data, headers=headers, timeout=30.0)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    return data.get("sankalpam_text", generate_standard_sankalpam(sankalpam_data))
+                else:
+                    print(f"DivineAPI error: {response.status_code} - {response.text}")
+                    # Fall back to standard template
+        except Exception as e:
+            print(f"Error calling DivineAPI: {e}")
+            # Fall back to standard template
+    
+    # Generate standard sankalpam template
+    return generate_standard_sankalpam(sankalpam_data)
+
+def generate_standard_sankalpam(data: dict) -> str:
+    """
+    Generate a standard sankalpam text with all the provided information
+    This is a template that should be customized based on actual requirements
+    """
+    # If data explicitly says Telugu, delegate to Telugu template
+    lang_in_data = str(data.get("language") or "").lower()
+    if lang_in_data == "telugu":
+        return _generate_telugu_sankalpam(data, data.get("pooja_name"))
+    
+    # Standard sankalpam template (Sanskrit with transliteration)
+    # Decide primary geographical phrase
+    primary_geo = data.get("primary_geographical_feature")
+    if not primary_geo:
+        # Fallback to river-based phrase
+        river_name = data.get("nearby_river") or "Ganga"
+        primary_geo = f"{river_name} नदी तटे"
+
+    # Use current date (not birth date) for the "today" / Panchang lines
+    current_year = data.get("current_year")
+    month_name = data.get("month_name")
+    tithi = data.get("tithi")
+    nakshatra = data.get("nakshatra")
+    yoga = data.get("yoga")
+    karana = data.get("karana")
+    weekday = data.get("weekday_name")
+
+    sankalpam = f"""
+श्री गणेशाय नमः
+
+ॐ विष्णुर्विष्णुर्विष्णुः
+
+अद्य श्रीमद्भगवतो महापुरुषस्य विष्णोराज्ञया प्रवर्तमानस्य
+अद्य ब्रह्मणो द्वितीयपरार्धे श्री श्वेतवाराहकल्पे
+वैवस्वतमन्वन्तरे अष्टाविंशतितमे कलियुगे
+प्रथमचरणे
+
+भारतवर्षे भरतखण्डे जम्बूद्वीपे
+{data['current_location']} नगरे
+{primary_geo}
+
+    अस्मिन् वर्तमाने व्यावहारिके
+{current_year} सम्वत्सरे
+{month_name or ''} मासे
+{tithi or ''} तिथौ
+{weekday or ''} वासरे
+{nakshatra or ''} नक्षत्रे
+{yoga or ''} योगे
+{karana or ''} करणे
+
+शुभे मुहूर्ते
+अहं {data['user_name']}
+गोत्र {data['gotram']}
+शर्मा/वर्मा/दास/देव (अपना उपनाम)
+जन्मस्थान: {data['birth_place']}
+जन्मसमय: {data['birth_time']}
+
+मम पारिवारिक सदस्याः:
+"""
+    
+    for member in data.get('family_members', []):
+        sankalpam += f"- {member['name']} ({member['relation']})\n"
+    
+    sankalpam += f"""
+इत्यादि सकलपापक्षयपूर्वकं
+अखण्डमण्डलाकारं व्याप्तं येन चराचरं
+तत्परमेश्वरं प्रणम्य
+
+अस्यां शुभतिथौ
+[पूजा का नाम यहाँ]
+पूजनं करिष्यामि
+
+तत्सिद्धयर्थं
+संकल्पं करोमि ॥
+"""
+    
+    return sankalpam.strip()
+
