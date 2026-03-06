@@ -1,3 +1,4 @@
+import os
 import re
 import logging
 from sqlalchemy import create_engine
@@ -7,49 +8,64 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Known Supabase project details (confirmed via MCP)
+_SUPABASE_PROJECT_REF = "ywdbaxurlxvoqzdkaqik"
+_SUPABASE_POOLER_HOST = "aws-0-us-east-1.pooler.supabase.com"
+
 
 def _mask_url(url: str) -> str:
-    """Return URL with password replaced by ***"""
     return re.sub(r"(://[^:@]+:)[^@]+(@)", r"\1***\2", url)
 
 
-def _resolve_db_url(url: str) -> str:
+def _resolve_db_url() -> str:
     """
-    Rewrites a Supabase direct-connection URL to the session-pooler URL.
-    This is required on Railway (and any IPv4-only host) because the direct
-    Supabase host resolves to an IPv6 address that those platforms cannot reach.
+    Build the correct Supabase session-pooler DATABASE_URL.
 
-    Direct:  postgresql://postgres:PASS@db.PROJECT.supabase.co:5432/postgres
-    Pooler:  postgresql://postgres.PROJECT:PASS@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require
+    Priority order:
+    1. SUPABASE_DB_PASSWORD env var  → build URL from scratch using known project ref
+    2. DATABASE_URL env var that is already a pooler URL → use as-is
+    3. DATABASE_URL env var that is a direct Supabase URL → convert to pooler
+    4. DATABASE_URL as-is (local dev, non-Supabase)
     """
-    # Already using the pooler — leave unchanged
-    if "pooler.supabase.com" in url:
-        logger.info("DATABASE_URL: already using Supabase pooler → %s", _mask_url(url))
+    raw_url = settings.database_url
+
+    # ── Priority 1: explicit password override ────────────────────────────────
+    # If SUPABASE_DB_PASSWORD is set in Railway, we build the correct URL
+    # with the known project ref, bypassing any URL-parsing issues entirely.
+    supabase_pw = os.environ.get("SUPABASE_DB_PASSWORD", "").strip()
+    if supabase_pw:
+        url = (
+            f"postgresql://postgres.{_SUPABASE_PROJECT_REF}:{supabase_pw}"
+            f"@{_SUPABASE_POOLER_HOST}:5432/postgres?sslmode=require"
+        )
+        logger.info("DATABASE_URL: built from SUPABASE_DB_PASSWORD → %s", _mask_url(url))
         return url
 
+    # ── Priority 2: URL already points to pooler ─────────────────────────────
+    if "pooler.supabase.com" in raw_url:
+        logger.info("DATABASE_URL: already using Supabase pooler → %s", _mask_url(raw_url))
+        return raw_url
+
+    # ── Priority 3: direct Supabase connection URL → convert ─────────────────
     match = re.match(
-        r"(postgresql(?:\+\w+)?|postgres)://([^:@]+):([^@]*)@db\.([^.]+)\.supabase\.co(?::\d+)?/(.+)",
-        url,
+        r"(postgresql(?:\+\w+)?|postgres)://([^:@]+):([^@]*)@db\.([^.]+)\.supabase\.co(?::\d+)?/([^?]+)",
+        raw_url,
     )
-    if not match:
-        logger.info("DATABASE_URL: not a direct Supabase URL, using as-is → %s", _mask_url(url))
+    if match:
+        scheme, _user, password, project_ref, dbname = match.groups()
+        url = (
+            f"{scheme}://postgres.{project_ref}:{password}"
+            f"@{_SUPABASE_POOLER_HOST}:5432/{dbname}?sslmode=require"
+        )
+        logger.info("DATABASE_URL: rewrote direct→pooler → %s", _mask_url(url))
         return url
 
-    scheme, _user, password, project_ref, dbname = match.groups()
-    dbname = dbname.split("?")[0]  # strip any existing query params
-
-    pooler_url = (
-        f"{scheme}://postgres.{project_ref}:{password}"
-        f"@aws-0-us-east-1.pooler.supabase.com:5432/{dbname}?sslmode=require"
-    )
-    logger.info(
-        "DATABASE_URL: rewrote direct Supabase URL to pooler → %s",
-        _mask_url(pooler_url),
-    )
-    return pooler_url
+    # ── Priority 4: local / non-Supabase URL ─────────────────────────────────
+    logger.info("DATABASE_URL: using as-is → %s", _mask_url(raw_url))
+    return raw_url
 
 
-_db_url = _resolve_db_url(settings.database_url)
+_db_url = _resolve_db_url()
 
 engine = create_engine(
     _db_url,
