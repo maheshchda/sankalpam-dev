@@ -3,10 +3,13 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.config import settings
 
-# If using psycopg3, change postgresql:// to postgresql+psycopg://
-# For psycopg2-binary, use postgresql://
-# SQLAlchemy will automatically detect based on the URL scheme
-engine = create_engine(settings.database_url)
+engine = create_engine(
+    settings.database_url,
+    pool_pre_ping=True,       # Detects stale connections before using them
+    pool_recycle=300,         # Recycle connections every 5 minutes
+    pool_size=5,
+    max_overflow=10,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()

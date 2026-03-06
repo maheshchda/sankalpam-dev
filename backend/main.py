@@ -105,11 +105,27 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS: single middleware that adds headers to every response for localhost (any port)
+import os
+
+_EXTRA_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+
+def _is_allowed_origin(origin: str) -> bool:
+    if not origin:
+        return False
+    if "localhost" in origin or "127.0.0.1" in origin:
+        return True
+    if any(origin == o for o in _EXTRA_ORIGINS):
+        return True
+    # Allow any *.railway.app / *.vercel.app subdomain automatically
+    if origin.endswith(".railway.app") or origin.endswith(".vercel.app"):
+        return True
+    return False
+
+# CORS middleware
 class LocalhostCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         origin = request.headers.get("origin", "")
-        is_localhost = origin and ("localhost" in origin or "127.0.0.1" in origin)
+        is_localhost = _is_allowed_origin(origin)
         if request.method == "OPTIONS" and is_localhost:
             from starlette.responses import Response
             return Response(
