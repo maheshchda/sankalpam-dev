@@ -10,7 +10,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 _SUPABASE_PROJECT_REF = "ywdbaxurlxvoqzdkaqik"
-_SUPABASE_POOLER_HOST = "aws-0-us-east-1.pooler.supabase.com"
+_SUPABASE_POOLER_HOST = "aws-1-us-east-1.pooler.supabase.com"
 
 
 def _mask_url(url: str) -> str:
