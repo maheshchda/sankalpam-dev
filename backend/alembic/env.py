@@ -16,8 +16,9 @@ load_dotenv()
 # this is the Alembic Config object
 config = context.config
 
-# Override sqlalchemy.url from environment variable
-config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/sankalpam_db"))
+# Override sqlalchemy.url from environment variable (DB_CONNECTION_STRING takes priority over DATABASE_URL)
+db_url = os.getenv("DB_CONNECTION_STRING") or os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/sankalpam_db")
+config.set_main_option("sqlalchemy.url", db_url)
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:

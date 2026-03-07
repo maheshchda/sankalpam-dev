@@ -23,12 +23,13 @@ def _resolve_db_url() -> str:
 
     Priority order:
     1. SUPABASE_DB_PASSWORD env var  → build URL from scratch (always correct)
-    2. DATABASE_URL already points to pooler with correct username → use as-is
-    3. DATABASE_URL points to pooler but username is missing project ref → fix username
-    4. DATABASE_URL is a direct Supabase URL (db.PROJECT.supabase.co) → convert to pooler
-    5. DATABASE_URL as-is (local dev / non-Supabase)
+    2. DB_CONNECTION_STRING env var  → use as-is
+    3. DATABASE_URL already points to pooler with correct username → use as-is
+    4. DATABASE_URL points to pooler but username is missing project ref → fix username
+    5. DATABASE_URL is a direct Supabase URL (db.PROJECT.supabase.co) → convert to pooler
+    6. DATABASE_URL as-is (local dev / non-Supabase)
     """
-    raw_url = settings.database_url
+    raw_url = settings.db_connection_string or settings.database_url
 
     # ── Priority 1: explicit password ─────────────────────────────────────────
     supabase_pw = os.environ.get("SUPABASE_DB_PASSWORD", "").strip()
@@ -40,7 +41,13 @@ def _resolve_db_url() -> str:
         print(f"[DB] Built URL from SUPABASE_DB_PASSWORD: {_mask_url(url)}", file=sys.stderr)
         return url
 
-    # ── Priority 2 & 3: URL already points to the pooler ─────────────────────
+    # ── Priority 2: explicit DB_CONNECTION_STRING ─────────────────────────────
+    conn_str = os.environ.get("DB_CONNECTION_STRING", "").strip()
+    if conn_str:
+        print(f"[DB] Using DB_CONNECTION_STRING: {_mask_url(conn_str)}", file=sys.stderr)
+        return conn_str
+
+    # ── Priority 3 & 4: URL already points to the pooler ─────────────────────
     if "pooler.supabase.com" in raw_url:
         # Parse out the username to check if it already has the project ref
         pooler_match = re.match(

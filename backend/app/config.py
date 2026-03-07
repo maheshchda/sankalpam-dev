@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings(BaseSettings):
-    # Database
+    # Database (reads DB_CONNECTION_STRING or DATABASE_URL)
+    db_connection_string: str = ""
     database_url: str = "postgresql://user:password@localhost:5432/sankalpam_db"
     
     # JWT
