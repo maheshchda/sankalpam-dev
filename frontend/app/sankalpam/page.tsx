@@ -392,39 +392,29 @@ export default function SankalpamPage() {
   }
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    return <div className="page-bg flex items-center justify-center">
+      <p className="font-cinzel text-sacred-700 text-xl">Loading...</p>
+    </div>
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100">
-      <nav className="bg-white shadow-sm">
+    <div className="page-bg">
+      <nav className="sacred-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            <Link href="/dashboard" className="text-2xl font-bold text-amber-600">
-              Sankalpam
-            </Link>
-            <div className="flex items-center space-x-4">
-              <Link href="/dashboard" className="px-4 py-2 text-gray-700 hover:text-amber-600">
-                Back to Dashboard
-              </Link>
-              <button
-                onClick={() => {
-                  logout()
-                  router.push('/login')
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-              >
-                Logout
-              </button>
+            <Link href="/dashboard" className="font-cinzel text-xl font-bold text-gold-400">Pooja Sankalpam</Link>
+            <div className="flex items-center gap-3">
+              <Link href="/dashboard" className="sacred-pill text-cream-200 border-gold-600/40 hover:text-gold-400">Back to Dashboard</Link>
+              <button onClick={() => { logout(); router.push('/login') }} className="rounded-md border border-gold-600/40 px-3 py-1.5 text-sm text-cream-300 hover:bg-sacred-700 transition-colors">Logout</button>
             </div>
           </div>
         </div>
       </nav>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-2xl font-bold mb-4">Generate Sankalpam</h2>
-          <p className="text-gray-600 mb-6">
+        <div className="sacred-card p-6 mb-6">
+          <h2 className="font-cinzel text-2xl font-bold text-sacred-800 mb-4">Generate Sankalpam</h2>
+          <p className="text-stone-600 mb-6">
             Generate a personalized Sankalpam using your profile information and selected template.
           </p>
 
@@ -456,8 +446,8 @@ export default function SankalpamPage() {
                     key={template.id}
                     className={`border rounded-lg p-4 cursor-pointer transition-colors ${
                       selectedTemplate?.id === template.id
-                        ? 'border-amber-600 bg-amber-50'
-                        : 'border-gray-300 hover:border-amber-400'
+                        ? 'border-gold-500 bg-gold-500/10 ring-1 ring-gold-500/30'
+                        : 'border-cream-300 hover:border-gold-500/50'
                     }`}
                     onClick={() => setSelectedTemplate(template)}
                   >
@@ -587,16 +577,9 @@ export default function SankalpamPage() {
 
           {/* Generate Button */}
           <button
-            onClick={(e) => {
-              console.log('Button clicked!')
-              console.log('Button disabled?', !selectedTemplate || generating || !location.city?.trim() || !location.state?.trim() || !location.country?.trim())
-              handleGenerate()
-            }}
+            onClick={() => handleGenerate()}
             disabled={!selectedTemplate || generating || !location.city?.trim() || !location.state?.trim() || !location.country?.trim()}
-            className="w-full px-6 py-3 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-            style={{ 
-              cursor: (!selectedTemplate || generating || !location.city?.trim() || !location.state?.trim() || !location.country?.trim()) ? 'not-allowed' : 'pointer'
-            }}
+            className="gold-btn w-full py-3"
           >
             {generating ? 'Generating Sankalpam...' : 'Generate Sankalpam'}
           </button>
@@ -609,60 +592,38 @@ export default function SankalpamPage() {
 
         {/* Sankalpam Playback Section */}
         {generatedSankalpam && (
-          <div id="sankalpam-playback" className="bg-white rounded-lg shadow p-6 mt-6">
+          <div id="sankalpam-playback" className="sacred-card p-6 mt-6">
             <div className="mb-6 text-center">
-              <h2 className="text-3xl font-bold mb-2 text-amber-600">Sankalpam</h2>
-              <p className="text-gray-600">Your personalized Sankalpam with professional priest chanting</p>
+              <h2 className="font-cinzel text-3xl font-bold text-sacred-800 mb-2">Sankalpam</h2>
+              <p className="text-stone-500">Your personalized Sankalpam with professional priest chanting</p>
             </div>
 
-            {/* Audio Player */}
             <div className="mb-6 text-center">
-              <audio
-                ref={audioRef}
-                src={generatedSankalpam.audioUrl}
-                preload="auto"
-                id="sankalpam-audio"
-                onEnded={() => {
-                  setIsPlaying(false)
-                  setCurrentLine(0)
-                }}
-              />
+              <audio ref={audioRef} src={generatedSankalpam.audioUrl} preload="auto" id="sankalpam-audio" onEnded={() => { setIsPlaying(false); setCurrentLine(0) }} />
               <div className="flex justify-center gap-4">
-                <button
-                  onClick={handlePlay}
-                  disabled={isPlaying}
-                  className="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 text-lg font-medium flex items-center gap-2"
-                >
+                <button onClick={handlePlay} disabled={isPlaying} className="gold-btn px-6 py-3 text-lg flex items-center gap-2">
                   ▶️ {isPlaying ? 'Playing...' : 'Play Sankalpam'}
                 </button>
                 {isPlaying && (
-                  <button
-                    onClick={handlePause}
-                    className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-lg font-medium flex items-center gap-2"
-                  >
+                  <button onClick={handlePause} className="sacred-btn px-6 py-3 text-lg flex items-center gap-2">
                     ⏸️ Pause
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Sankalpam Text with Highlighting */}
-            <div className="bg-amber-50 rounded-lg p-6 min-h-[400px] max-h-[600px] overflow-y-auto">
+            <div className="bg-cream-200 rounded-lg p-6 min-h-[400px] max-h-[600px] overflow-y-auto">
               <AnimatePresence mode="wait">
                 {generatedSankalpam.text.split('\n').filter(line => line.trim()).map((line, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, y: 20 }}
-                    animate={{
-                      opacity: currentLine === index ? 1 : 0.5,
-                      y: 0,
-                      scale: currentLine === index ? 1.02 : 1,
-                    }}
+                    animate={{ opacity: currentLine === index ? 1 : 0.5, y: 0, scale: currentLine === index ? 1.02 : 1 }}
                     transition={{ duration: 0.3 }}
                     className={`mb-3 text-lg ${
                       currentLine === index
-                        ? 'text-amber-900 font-semibold bg-amber-200 p-3 rounded-lg shadow-md'
-                        : 'text-gray-700'
+                        ? 'text-sacred-800 font-semibold bg-gold-500/20 border border-gold-500/30 p-3 rounded-lg'
+                        : 'text-stone-600'
                     }`}
                   >
                     {line}
@@ -673,16 +634,8 @@ export default function SankalpamPage() {
 
             <div className="mt-6 text-center">
               <button
-                onClick={() => {
-                  setGeneratedSankalpam(null)
-                  setIsPlaying(false)
-                  setCurrentLine(0)
-                  if (audioRef.current) {
-                    audioRef.current.pause()
-                    audioRef.current.currentTime = 0
-                  }
-                }}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                onClick={() => { setGeneratedSankalpam(null); setIsPlaying(false); setCurrentLine(0); if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0 } }}
+                className="px-4 py-2 bg-cream-200 text-stone-700 rounded-md hover:bg-cream-300 border border-cream-300"
               >
                 Generate New Sankalpam
               </button>

@@ -7,8 +7,8 @@ export default function AdminUsersPage() {
   return (
     <AdminLayout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">User Management</h1>
-        <p className="text-slate-500 text-sm mt-1">
+        <h1 className="font-cinzel text-2xl font-bold text-sacred-800">User Management</h1>
+        <p className="text-stone-500 text-sm mt-1">
           View, create, edit, and manage all frontend user accounts.
         </p>
       </div>

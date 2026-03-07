@@ -31,32 +31,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-cream-100 flex flex-col">
       {/* Top bar */}
-      <header className="bg-slate-900 text-white shadow-md z-30 flex-shrink-0">
+      <header className="sacred-header z-30 flex-shrink-0">
         <div className="max-w-full px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Hamburger for mobile */}
             <button
-              className="lg:hidden text-slate-300 hover:text-white p-1"
+              className="lg:hidden text-cream-300 hover:text-gold-400 p-1"
               onClick={() => setSidebarOpen(!sidebarOpen)}
             >
               ☰
             </button>
-            <div className="h-9 w-9 rounded-full bg-orange-600 flex items-center justify-center text-sm font-bold shrink-0">
+            <div className="h-9 w-9 rounded-full bg-gold-600 text-sacred-900 flex items-center justify-center text-sm font-bold shrink-0">
               PS
             </div>
             <div>
-              <span className="font-bold text-lg leading-none">Pooja Sankalpam</span>
-              <span className="ml-2 text-xs bg-orange-600 rounded px-1.5 py-0.5 font-semibold align-middle">ADMIN</span>
+              <span className="font-cinzel font-bold text-lg text-gold-400 leading-none">Pooja Sankalpam</span>
+              <span className="ml-2 text-xs bg-gold-600 text-sacred-900 rounded px-1.5 py-0.5 font-bold align-middle">ADMIN</span>
             </div>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <span className="hidden sm:inline text-slate-400">
-              Signed in as <span className="text-white font-semibold">{adminUsername}</span>
+            <span className="hidden sm:inline text-cream-300/60">
+              Signed in as <span className="text-gold-400 font-semibold">{adminUsername}</span>
             </span>
-            <Link href="/" className="text-slate-400 hover:text-white hidden sm:inline">Main Site</Link>
-            <button onClick={handleLogout} className="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-md text-slate-200 text-xs">
+            <Link href="/" className="text-cream-300/60 hover:text-gold-400 hidden sm:inline transition-colors">Main Site</Link>
+            <button onClick={handleLogout} className="bg-sacred-700 hover:bg-sacred-600 px-3 py-1.5 rounded-md text-cream-200 text-xs transition-colors">
               Logout
             </button>
           </div>
@@ -64,14 +63,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar overlay for mobile */}
         {sidebarOpen && (
           <div className="fixed inset-0 bg-black/50 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
         )}
 
         {/* Sidebar */}
         <aside className={`
-          fixed lg:static inset-y-0 left-0 z-20 w-56 bg-slate-800 text-white flex flex-col pt-4 transition-transform duration-200
+          fixed lg:static inset-y-0 left-0 z-20 w-56 bg-sacred-800 text-cream-100 flex flex-col pt-4 transition-transform duration-200 border-r border-gold-700/20
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}>
           <nav className="flex-1 px-2 space-y-1 mt-2">
@@ -84,8 +82,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   onClick={() => setSidebarOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     active
-                      ? 'bg-orange-600 text-white'
-                      : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                      ? 'bg-gold-600 text-sacred-900 font-semibold'
+                      : 'text-cream-300 hover:bg-sacred-700 hover:text-cream-50'
                   }`}
                 >
                   <span className="text-base leading-none">{item.icon}</span>
@@ -95,7 +93,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             })}
           </nav>
 
-          <div className="px-4 py-4 border-t border-slate-700 text-xs text-slate-500">
+          <div className="px-4 py-4 border-t border-gold-700/20 text-xs text-cream-300/40">
             Pooja Sankalpam Admin v1.0
           </div>
         </aside>

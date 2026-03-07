@@ -49,12 +49,15 @@ export default function DashboardPage() {
   }
 
   if (authLoading || loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    return <div className="page-bg flex items-center justify-center">
+      <p className="font-cinzel text-sacred-700 text-xl">Loading...</p>
+    </div>
   }
 
-  // Don't render dashboard for admins - redirect to admin portal
   if (user?.is_admin) {
-    return <div className="min-h-screen flex items-center justify-center">Redirecting to admin portal...</div>
+    return <div className="page-bg flex items-center justify-center">
+      <p className="font-cinzel text-sacred-700 text-xl">Redirecting to admin portal...</p>
+    </div>
   }
 
   if (!user) {
@@ -62,31 +65,17 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100">
+    <div className="page-bg">
       <PanchangTicker />
-      <nav className="bg-white shadow-sm">
+      <nav className="sacred-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-amber-600">Sankalpam</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-700">Welcome, {user.first_name}!</span>
-              <Link href="/profile" className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200">
-                Profile
-              </Link>
-              <Link href="/pooja-calendar" className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700">
-                Pooja Calendar
-              </Link>
-              <button
-                onClick={() => {
-                  logout()
-                  router.push('/login')
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-              >
-                Logout
-              </button>
+          <div className="flex justify-between h-16 items-center">
+            <h1 className="font-cinzel text-xl font-bold text-gold-400">Pooja Sankalpam</h1>
+            <div className="flex items-center gap-3">
+              <span className="text-cream-300/70 text-sm hidden sm:inline">Welcome, <span className="text-gold-400 font-medium">{user.first_name}</span>!</span>
+              <Link href="/profile" className="sacred-pill text-cream-200 border-gold-600/40 hover:text-gold-400">Profile</Link>
+              <Link href="/pooja-calendar" className="gold-btn text-sm py-1.5">Pooja Calendar</Link>
+              <button onClick={() => { logout(); router.push('/login') }} className="rounded-md border border-gold-600/40 px-3 py-1.5 text-sm text-cream-300 hover:bg-sacred-700 transition-colors">Logout</button>
             </div>
           </div>
         </div>
@@ -94,46 +83,36 @@ export default function DashboardPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Family Members Card */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="sacred-card p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Family Members</h2>
-              <Link
-                href="/family"
-                className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-sm"
-              >
-                Manage
-              </Link>
+              <h2 className="font-cinzel text-xl font-bold text-sacred-700">Family Members</h2>
+              <Link href="/family" className="gold-btn text-sm py-1.5">Manage</Link>
             </div>
             {familyMembers.length === 0 ? (
-              <p className="text-gray-500">No family members added yet.</p>
+              <p className="text-stone-500">No family members added yet.</p>
             ) : (
               <ul className="space-y-2">
                 {familyMembers.map((member) => (
-                  <li key={member.id} className="flex justify-between py-2 border-b">
-                    <span className="font-medium">{member.name}</span>
-                    <span className="text-gray-500">{member.relation}</span>
+                  <li key={member.id} className="flex justify-between py-2 border-b border-cream-300">
+                    <span className="font-medium text-sacred-700">{member.name}</span>
+                    <span className="text-stone-500 text-sm">{member.relation}</span>
                   </li>
                 ))}
               </ul>
             )}
           </div>
 
-          {/* Quick Actions Card */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
+          <div className="sacred-card p-6">
+            <h2 className="font-cinzel text-xl font-bold text-sacred-700 mb-4">Quick Actions</h2>
             <div className="space-y-3">
-              <Link
-                href="/family"
-                className="block px-4 py-2 bg-gray-100 rounded-md hover:bg-gray-200"
-              >
+              <Link href="/family" className="block px-4 py-2.5 bg-cream-200 rounded-md hover:bg-cream-300 text-sacred-700 font-medium transition-colors">
                 Add Family Member
               </Link>
-              <Link
-                href="/pooja-calendar"
-                className="block px-4 py-2 bg-amber-100 rounded-md hover:bg-amber-200 font-medium"
-              >
+              <Link href="/pooja-calendar" className="block px-4 py-2.5 bg-gold-500/20 rounded-md hover:bg-gold-500/30 text-sacred-700 font-medium transition-colors border border-gold-500/30">
                 Pooja Calendar
+              </Link>
+              <Link href="/sankalpam" className="block px-4 py-2.5 bg-sacred-700/10 rounded-md hover:bg-sacred-700/20 text-sacred-700 font-medium transition-colors">
+                Generate Sankalpam
               </Link>
             </div>
           </div>

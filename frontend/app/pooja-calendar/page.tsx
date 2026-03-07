@@ -243,34 +243,21 @@ export default function PoojaCalendarPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100">
-      <nav className="bg-white shadow-sm">
+    <div className="page-bg">
+      <nav className="sacred-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-amber-600">{t('sankalpam', lang)}</h1>
-            </div>
-            <div className="flex items-center space-x-4">
+          <div className="flex justify-between h-16 items-center">
+            <h1 className="font-cinzel text-xl font-bold text-gold-400">{t('sankalpam', lang)}</h1>
+            <div className="flex items-center gap-3">
               {user ? (
                 <>
-                  <span className="text-gray-700">{t('welcome', lang)}{user.first_name}!</span>
-                  <Link href="/dashboard" className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200">
-                    {t('dashboard', lang)}
-                  </Link>
-                  <Link href="/pooja" className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700">
-                    {t('selectPooja', lang)}
-                  </Link>
-                  <button
-                    onClick={() => { logout(); router.push('/login') }}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                  >
-                    {t('logout', lang)}
-                  </button>
+                  <span className="text-cream-300/70 text-sm hidden sm:inline">{t('welcome', lang)}<span className="text-gold-400 font-medium">{user.first_name}</span>!</span>
+                  <Link href="/dashboard" className="sacred-pill text-cream-200 border-gold-600/40 hover:text-gold-400">{t('dashboard', lang)}</Link>
+                  <Link href="/pooja" className="gold-btn text-sm py-1.5">{t('selectPooja', lang)}</Link>
+                  <button onClick={() => { logout(); router.push('/login') }} className="rounded-md border border-gold-600/40 px-3 py-1.5 text-sm text-cream-300 hover:bg-sacred-700 transition-colors">{t('logout', lang)}</button>
                 </>
               ) : (
-                <Link href="/login" className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700">
-                  Login
-                </Link>
+                <Link href="/login" className="gold-btn text-sm py-1.5">Login</Link>
               )}
             </div>
           </div>
@@ -278,15 +265,15 @@ export default function PoojaCalendarPage() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h2 className="text-2xl font-bold text-amber-800 mb-6">{t('pageTitle', lang)}</h2>
+        <h2 className="font-cinzel text-2xl font-bold text-sacred-800 mb-6">{t('pageTitle', lang)}</h2>
 
-        <div className="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap gap-4 items-end">
+        <div className="sacred-card p-4 mb-6 flex flex-wrap gap-4 items-end">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('country', lang)}</label>
+            <label className="block text-sm font-medium text-sacred-700 mb-1">{t('country', lang)}</label>
             <select
               value={country}
               onChange={(e) => setCountry(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 min-w-[200px]"
+              className="border border-cream-300 rounded-md px-3 py-2 min-w-[200px] bg-white text-stone-800 focus:border-gold-500 focus:ring-1 focus:ring-gold-500"
             >
               {[...new Set([...COUNTRY_OPTIONS, country])].map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -294,12 +281,12 @@ export default function PoojaCalendarPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('state', lang)}</label>
+            <label className="block text-sm font-medium text-sacred-700 mb-1">{t('state', lang)}</label>
             <select
               value={state}
               onChange={(e) => setState(e.target.value)}
               disabled={loadingStates}
-              className="border border-gray-300 rounded-md px-3 py-2 min-w-[180px]"
+              className="border border-cream-300 rounded-md px-3 py-2 min-w-[180px] bg-white text-stone-800 focus:border-gold-500 focus:ring-1 focus:ring-gold-500"
             >
               <option value="">{t('selectState', lang)}</option>
               {states.map((s) => (
@@ -311,11 +298,11 @@ export default function PoojaCalendarPage() {
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('year', lang)}</label>
+            <label className="block text-sm font-medium text-sacred-700 mb-1">{t('year', lang)}</label>
             <select
               value={year}
               onChange={(e) => setYear(e.target.value === '' ? '' : Number(e.target.value))}
-              className="border border-gray-300 rounded-md px-3 py-2 min-w-[120px]"
+              className="border border-cream-300 rounded-md px-3 py-2 min-w-[120px] bg-white text-stone-800 focus:border-gold-500 focus:ring-1 focus:ring-gold-500"
             >
               <option value="">{t('allYears', lang)}</option>
               {YEARS.map((y) => (
@@ -324,11 +311,11 @@ export default function PoojaCalendarPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('typeOfPooja', lang)}</label>
+            <label className="block text-sm font-medium text-sacred-700 mb-1">{t('typeOfPooja', lang)}</label>
             <select
               value={poojaType}
               onChange={(e) => setPoojaType(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 min-w-[140px]"
+              className="border border-cream-300 rounded-md px-3 py-2 min-w-[140px] bg-white text-stone-800 focus:border-gold-500 focus:ring-1 focus:ring-gold-500"
             >
               <option value="">{t('allTypes', lang)}</option>
               {POOJA_TYPES.map((t) => (
@@ -337,11 +324,11 @@ export default function PoojaCalendarPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('language', lang)}</label>
+            <label className="block text-sm font-medium text-sacred-700 mb-1">{t('language', lang)}</label>
             <select
               value={lang}
               onChange={(e) => setLang(e.target.value as LangCode)}
-              className="border border-gray-300 rounded-md px-3 py-2 min-w-[180px]"
+              className="border border-cream-300 rounded-md px-3 py-2 min-w-[180px] bg-white text-stone-800 focus:border-gold-500 focus:ring-1 focus:ring-gold-500"
             >
               {availableLanguages.map((l) => (
                 <option key={l.code} value={l.code}>{l.native}</option>
@@ -350,63 +337,48 @@ export default function PoojaCalendarPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="sacred-card overflow-hidden">
           {loadingData ? (
-            <div className="p-8 text-center text-gray-500">{t('loading', lang)}</div>
+            <div className="p-8 text-center text-stone-500">{t('loading', lang)}</div>
           ) : rows.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-stone-500">
               {state ? t('noRows', lang) : t('selectStateToView', lang)}
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-amber-50">
+              <table className="min-w-full divide-y divide-cream-300">
+                <thead className="bg-sacred-800">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-amber-800 uppercase">{t('poojaName', lang)}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-amber-800 uppercase">{t('freq', lang)}</th>
+                    <th className="px-4 py-3 text-left text-xs font-cinzel font-semibold text-gold-400 uppercase">{t('poojaName', lang)}</th>
+                    <th className="px-4 py-3 text-left text-xs font-cinzel font-semibold text-gold-400 uppercase">{t('freq', lang)}</th>
                     {poojaType === 'Yearly' && (
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-amber-800 uppercase">{t('poojaDate', lang)}</th>
+                      <th className="px-4 py-3 text-left text-xs font-cinzel font-semibold text-gold-400 uppercase">{t('poojaDate', lang)}</th>
                     )}
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-amber-800 uppercase">{t('localLanguage', lang)}</th>
+                    <th className="px-4 py-3 text-left text-xs font-cinzel font-semibold text-gold-400 uppercase">{t('localLanguage', lang)}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-cream-200">
                   {rows.map((row, i) => (
-                    <tr key={i} className="hover:bg-amber-50/50">
-                      <td className="px-4 py-3 text-sm text-gray-900">
+                    <tr key={i} className="hover:bg-cream-200/50">
+                      <td className="px-4 py-3 text-sm text-stone-800">
                         {getLinkedPoojaPath(row) ? (
-                          <div className="flex items-center gap-3">
-                            <Link href={getLinkedPoojaPath(row) as string} className="text-amber-700 hover:text-amber-900 underline">
+                          <div className="flex items-center flex-wrap gap-2">
+                            <Link href={getLinkedPoojaPath(row) as string} className="gold-link font-medium underline">
                               {row.pooja_name}
                             </Link>
-                            <Link
-                              href={getLinkedPoojaPath(row) as string}
-                              className="px-2 py-1 text-xs bg-amber-600 text-white rounded hover:bg-amber-700"
-                            >
-                              Open Pooja
-                            </Link>
-                            <Link
-                              href={`/pooja-readiness/${getPoojaSlug(row.pooja_name)}`}
-                              className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
-                            >
-                              Pooja Readiness Info
-                            </Link>
-                            <Link
-                              href={`/pooja-items/${getPoojaSlug(row.pooja_name)}`}
-                              className="px-2 py-1 text-xs bg-teal-600 text-white rounded hover:bg-teal-700"
-                            >
-                              Pooja Items List
-                            </Link>
+                            <Link href={getLinkedPoojaPath(row) as string} className="px-2 py-1 text-xs bg-gold-600 text-sacred-900 rounded hover:bg-gold-500 font-semibold">Open Pooja</Link>
+                            <Link href={`/pooja-readiness/${getPoojaSlug(row.pooja_name)}`} className="px-2 py-1 text-xs bg-sacred-700 text-cream-100 rounded hover:bg-sacred-600">Readiness Info</Link>
+                            <Link href={`/pooja-items/${getPoojaSlug(row.pooja_name)}`} className="px-2 py-1 text-xs bg-sacred-600 text-cream-100 rounded hover:bg-sacred-500">Items List</Link>
                           </div>
                         ) : (
                           row.pooja_name
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{row.freq}</td>
+                      <td className="px-4 py-3 text-sm text-stone-600">{row.freq}</td>
                       {poojaType === 'Yearly' && (
-                        <td className="px-4 py-3 text-sm text-gray-700">{row.pooja_date || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-stone-600">{row.pooja_date || '-'}</td>
                       )}
-                      <td className="px-4 py-3 text-sm text-gray-700">{row.local_language}</td>
+                      <td className="px-4 py-3 text-sm text-stone-600">{row.local_language}</td>
                     </tr>
                   ))}
                 </tbody>

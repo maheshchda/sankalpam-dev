@@ -38,7 +38,7 @@ module.exports = {
         },
       },
       fontFamily: {
-        cinzel: ['Cinzel', 'Georgia', 'serif'],
+        cinzel: ['var(--font-cinzel)', 'Georgia', 'serif'],
       },
     },
   },

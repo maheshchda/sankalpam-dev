@@ -161,13 +161,13 @@ export default function AdminDashboard() {
       {/* Page header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Admin Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Overview and role management</p>
+          <h1 className="font-cinzel text-2xl font-bold text-sacred-800">Admin Dashboard</h1>
+          <p className="text-sm text-stone-500 mt-0.5">Overview and role management</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-slate-200 mb-6 flex-wrap">
+      <div className="flex gap-2 border-b border-cream-300 mb-6 flex-wrap">
         {([
           ['stats',  'Dashboard Stats'],
           ['users',  'User Management'],
@@ -179,8 +179,8 @@ export default function AdminDashboard() {
             onClick={() => setTab(key)}
             className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition -mb-px ${
               tab === key
-                ? 'bg-white border border-b-white border-slate-200 text-orange-600'
-                : 'text-slate-500 hover:text-slate-800'
+                ? 'bg-white border border-b-white border-cream-300 text-gold-600'
+                : 'text-stone-500 hover:text-stone-800'
             }`}
           >
             {label}
@@ -192,8 +192,8 @@ export default function AdminDashboard() {
       {tab === 'stats' && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-700">System Overview</h2>
-            <button onClick={fetchStats} className="text-sm text-orange-600 hover:underline">Refresh</button>
+            <h2 className="font-cinzel text-lg font-semibold text-sacred-700">System Overview</h2>
+            <button onClick={fetchStats} className="text-sm gold-link hover:underline">Refresh</button>
           </div>
           {loadingStats ? (
             <p className="text-slate-500">Loading…</p>
@@ -226,58 +226,43 @@ export default function AdminDashboard() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-slate-700">Roles & Permissions</h2>
-              <p className="text-sm text-slate-500">Define what each admin role can do.</p>
+              <h2 className="font-cinzel text-lg font-semibold text-sacred-700">Roles &amp; Permissions</h2>
+              <p className="text-sm text-stone-500">Define what each admin role can do.</p>
             </div>
-            <button
-              onClick={() => openEditor()}
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-semibold"
-            >
-              + Create Role
-            </button>
+            <button onClick={() => openEditor()} className="gold-btn text-sm py-2">+ Create Role</button>
           </div>
 
           {loadingRoles ? (
-            <p className="text-slate-500">Loading…</p>
+            <p className="text-stone-500">Loading…</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {roles.map(role => (
-                <div key={role.id} className="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+                <div key={role.id} className="sacred-card p-5">
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-slate-800">{role.name}</h3>
+                        <h3 className="font-cinzel font-bold text-sacred-800">{role.name}</h3>
                         {role.is_system_role && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">System</span>
+                          <span className="text-xs bg-gold-500/20 text-gold-700 px-2 py-0.5 rounded-full font-medium border border-gold-500/30">System</span>
                         )}
                       </div>
-                      {role.description && <p className="text-sm text-slate-500 mt-0.5">{role.description}</p>}
-                      <p className="text-xs text-slate-400 mt-1">{role.user_count} user(s) assigned</p>
+                      {role.description && <p className="text-sm text-stone-500 mt-0.5">{role.description}</p>}
+                      <p className="text-xs text-stone-400 mt-1">{role.user_count} user(s) assigned</p>
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <button
-                        onClick={() => openEditor(role)}
-                        className="px-2 py-1 text-xs rounded bg-slate-100 hover:bg-slate-200 text-slate-700"
-                      >
-                        Edit
-                      </button>
+                      <button onClick={() => openEditor(role)} className="px-2 py-1 text-xs rounded bg-cream-200 hover:bg-cream-300 text-sacred-700 border border-cream-300">Edit</button>
                       {!role.is_system_role && (
-                        <button
-                          onClick={() => deleteRole(role)}
-                          className="px-2 py-1 text-xs rounded bg-red-100 hover:bg-red-200 text-red-700"
-                        >
-                          Delete
-                        </button>
+                        <button onClick={() => deleteRole(role)} className="px-2 py-1 text-xs rounded bg-red-100 hover:bg-red-200 text-red-700">Delete</button>
                       )}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     {role.permissions.includes('*') ? (
-                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">All Permissions (*)</span>
+                      <span className="text-xs bg-sacred-700/10 text-sacred-700 px-2 py-0.5 rounded-full font-semibold border border-sacred-700/20">All Permissions (*)</span>
                     ) : role.permissions.length === 0 ? (
-                      <span className="text-xs text-slate-400 italic">No permissions assigned</span>
+                      <span className="text-xs text-stone-400 italic">No permissions assigned</span>
                     ) : role.permissions.map(p => (
-                      <span key={p} className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{p}</span>
+                      <span key={p} className="text-xs bg-gold-500/10 text-gold-700 px-2 py-0.5 rounded-full border border-gold-500/20">{p}</span>
                     ))}
                   </div>
                 </div>
@@ -291,8 +276,8 @@ export default function AdminDashboard() {
       {tab === 'users' && (
         <div>
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-slate-700">User Management</h2>
-            <p className="text-sm text-slate-500">View, create, edit, and manage all frontend user accounts.</p>
+            <h2 className="font-cinzel text-lg font-semibold text-sacred-700">User Management</h2>
+            <p className="text-sm text-stone-500">View, create, edit, and manage all frontend user accounts.</p>
           </div>
           <UserManagementPanel />
         </div>
@@ -302,8 +287,8 @@ export default function AdminDashboard() {
       {tab === 'admins' && (
         <div>
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-slate-700">Admin Accounts</h2>
-            <p className="text-sm text-slate-500">Manage administrator accounts, assign roles, and control admin access.</p>
+            <h2 className="font-cinzel text-lg font-semibold text-sacred-700">Admin Accounts</h2>
+            <p className="text-sm text-stone-500">Manage administrator accounts, assign roles, and control admin access.</p>
           </div>
           <UserManagementPanel showAdmins />
         </div>
@@ -311,83 +296,44 @@ export default function AdminDashboard() {
 
       {/* Role editor modal */}
       {showEditor && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4"
-          onClick={() => setShowEditor(false)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4" onClick={() => setShowEditor(false)}>
+          <div className="sacred-card w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-slate-800">
-                {editingRole ? 'Edit Role' : 'Create New Role'}
-              </h3>
-              <button onClick={() => setShowEditor(false)} className="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+              <h3 className="font-cinzel text-lg font-bold text-sacred-800">{editingRole ? 'Edit Role' : 'Create New Role'}</h3>
+              <button onClick={() => setShowEditor(false)} className="text-stone-400 hover:text-stone-600 text-xl">&times;</button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Role Name *</label>
-                <input
-                  type="text"
-                  value={roleForm.name}
-                  onChange={e => setRoleForm(p => ({ ...p, name: e.target.value }))}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
-                  placeholder="e.g. Content Reviewer"
-                />
+                <label className="block text-sm font-medium text-sacred-700 mb-1">Role Name *</label>
+                <input type="text" value={roleForm.name} onChange={e => setRoleForm(p => ({ ...p, name: e.target.value }))} className="w-full border border-cream-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gold-400 focus:border-gold-500" placeholder="e.g. Content Reviewer" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                <textarea
-                  value={roleForm.description}
-                  onChange={e => setRoleForm(p => ({ ...p, description: e.target.value }))}
-                  rows={2}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
-                  placeholder="What can this role do?"
-                />
+                <label className="block text-sm font-medium text-sacred-700 mb-1">Description</label>
+                <textarea value={roleForm.description} onChange={e => setRoleForm(p => ({ ...p, description: e.target.value }))} rows={2} className="w-full border border-cream-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gold-400 focus:border-gold-500" placeholder="What can this role do?" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Permissions</label>
+                <label className="block text-sm font-medium text-sacred-700 mb-2">Permissions</label>
                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                   {permissions.map(perm => (
-                    <label
-                      key={perm.code}
-                      className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition ${
-                        roleForm.permissions.includes(perm.code)
-                          ? 'bg-orange-50 border-orange-300'
-                          : 'border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={roleForm.permissions.includes(perm.code)}
-                        onChange={() => togglePermission(perm.code)}
-                        className="mt-0.5 accent-orange-600"
-                      />
+                    <label key={perm.code} className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition ${roleForm.permissions.includes(perm.code) ? 'bg-gold-500/10 border-gold-500/40' : 'border-cream-300 hover:bg-cream-100'}`}>
+                      <input type="checkbox" checked={roleForm.permissions.includes(perm.code)} onChange={() => togglePermission(perm.code)} className="mt-0.5 accent-gold-600" />
                       <div>
-                        <p className="text-sm font-medium text-slate-800">{perm.code}</p>
-                        <p className="text-xs text-slate-500">{perm.description}</p>
+                        <p className="text-sm font-medium text-sacred-800">{perm.code}</p>
+                        <p className="text-xs text-stone-500">{perm.description}</p>
                       </div>
                     </label>
                   ))}
                 </div>
-                <p className="text-xs text-slate-400 mt-1">{roleForm.permissions.length} permission(s) selected</p>
+                <p className="text-xs text-stone-400 mt-1">{roleForm.permissions.length} permission(s) selected</p>
               </div>
             </div>
 
             <div className="flex gap-2 mt-6">
-              <button
-                onClick={saveRole}
-                disabled={saving}
-                className="flex-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white rounded-lg py-2 text-sm font-semibold"
-              >
+              <button onClick={saveRole} disabled={saving} className="flex-1 gold-btn py-2 text-sm">
                 {saving ? 'Saving…' : editingRole ? 'Update Role' : 'Create Role'}
               </button>
-              <button
-                onClick={() => setShowEditor(false)}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg py-2 text-sm font-medium"
-              >
+              <button onClick={() => setShowEditor(false)} className="flex-1 bg-cream-200 hover:bg-cream-300 text-stone-700 rounded-lg py-2 text-sm font-medium border border-cream-300">
                 Cancel
               </button>
             </div>

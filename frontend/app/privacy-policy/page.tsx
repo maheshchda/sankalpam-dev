@@ -1,10 +1,18 @@
+import SiteHeader from '@/components/SiteHeader'
+import SiteFooter from '@/components/SiteFooter'
+
 export default function PrivacyPolicyPage() {
   return (
-    <section className="min-h-[70vh] bg-gradient-to-b from-orange-50 to-amber-50 px-4 py-16">
-      <div className="mx-auto max-w-3xl rounded-2xl bg-white p-10 text-center shadow-md">
-        <h1 className="text-3xl font-bold text-orange-900">Privacy Policy</h1>
-        <p className="mt-3 text-slate-600">Placeholder page. You can add your privacy policy here.</p>
-      </div>
-    </section>
+    <div className="page-bg flex flex-col">
+      <SiteHeader />
+      <main className="flex-1 flex items-center justify-center px-4 py-16">
+        <div className="sacred-card max-w-3xl w-full p-10 text-center">
+          <h1 className="font-cinzel text-3xl font-bold text-sacred-800">Privacy Policy</h1>
+          <div className="gold-divider mx-auto max-w-xs my-4" />
+          <p className="text-stone-600">Placeholder page. You can add your privacy policy here.</p>
+        </div>
+      </main>
+      <SiteFooter />
+    </div>
   )
 }

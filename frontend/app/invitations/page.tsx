@@ -1,15 +1,22 @@
 import Link from 'next/link'
+import SiteHeader from '@/components/SiteHeader'
+import SiteFooter from '@/components/SiteFooter'
 
 export default function InvitationsPage() {
   return (
-    <section className="min-h-[70vh] bg-gradient-to-b from-orange-50 to-amber-50 px-4 py-16">
-      <div className="mx-auto max-w-3xl rounded-2xl bg-white p-10 text-center shadow-md">
-        <h1 className="text-3xl font-bold text-orange-900">Invitations</h1>
-        <p className="mt-3 text-slate-600">Coming soon. Invitation features will be available here.</p>
-        <Link href="/" className="mt-6 inline-block rounded-md bg-orange-600 px-4 py-2 text-white hover:bg-orange-700">
-          Back to Home
-        </Link>
-      </div>
-    </section>
+    <div className="page-bg flex flex-col">
+      <SiteHeader />
+      <main className="flex-1 flex items-center justify-center px-4 py-16">
+        <div className="sacred-card max-w-2xl w-full p-10 text-center">
+          <h1 className="font-cinzel text-3xl font-bold text-sacred-800">Invitations</h1>
+          <div className="gold-divider mx-auto max-w-xs my-4" />
+          <p className="text-stone-600 mt-3">Coming soon. Invitation features will be available here.</p>
+          <Link href="/" className="gold-btn inline-block mt-8">
+            Back to Home
+          </Link>
+        </div>
+      </main>
+      <SiteFooter />
+    </div>
   )
 }

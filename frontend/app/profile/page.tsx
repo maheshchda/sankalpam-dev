@@ -267,36 +267,24 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100">
-      <nav className="bg-white shadow-sm">
+    <div className="page-bg">
+      <nav className="sacred-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            <Link href="/dashboard" className="text-2xl font-bold text-amber-600">
-              Sankalpam
-            </Link>
-            <div className="flex items-center space-x-4">
-              <Link href="/dashboard" className="px-4 py-2 text-gray-700 hover:text-amber-600">
-                Back to Dashboard
-              </Link>
-              <button
-                onClick={() => {
-                  logout()
-                  router.push('/login')
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-              >
-                Logout
-              </button>
+            <Link href="/dashboard" className="font-cinzel text-xl font-bold text-gold-400">Pooja Sankalpam</Link>
+            <div className="flex items-center gap-3">
+              <Link href="/dashboard" className="sacred-pill text-cream-200 border-gold-600/40 hover:text-gold-400">Back to Dashboard</Link>
+              <button onClick={() => { logout(); router.push('/login') }} className="rounded-md border border-gold-600/40 px-3 py-1.5 text-sm text-cream-300 hover:bg-sacred-700 transition-colors">Logout</button>
             </div>
           </div>
         </div>
       </nav>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow p-6 space-y-6">
+        <div className="sacred-card p-6 space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">Your Profile</h2>
-            <div className="text-sm text-gray-500">
+            <h2 className="font-cinzel text-2xl font-bold text-sacred-800">Your Profile</h2>
+            <div className="text-sm text-stone-500 text-right">
               <div>Username: {user.username}</div>
               <div>Email: {user.email}</div>
             </div>
@@ -663,19 +651,10 @@ export default function ProfilePage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50"
-              >
+              <button type="submit" disabled={loading} className="gold-btn">
                 {loading ? 'Saving...' : 'Save Changes'}
               </button>
-
-              <button
-                type="button"
-                onClick={handleDeleteAccount}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
-              >
+              <button type="button" onClick={handleDeleteAccount} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm">
                 Delete Account
               </button>
             </div>

@@ -319,42 +319,32 @@ export default function FamilyPage() {
   }
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    return <div className="page-bg flex items-center justify-center">
+      <p className="font-cinzel text-sacred-700 text-xl">Loading...</p>
+    </div>
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100">
-      <nav className="bg-white shadow-sm">
+    <div className="page-bg">
+      <nav className="sacred-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            <Link href="/dashboard" className="text-2xl font-bold text-amber-600">
-              Sankalpam
-            </Link>
-            <div className="flex items-center space-x-4">
-              <Link href="/dashboard" className="px-4 py-2 text-gray-700 hover:text-amber-600">
-                Back to Dashboard
-              </Link>
-              <button
-                onClick={() => {
-                  logout()
-                  router.push('/login')
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-              >
-                Logout
-              </button>
+            <Link href="/dashboard" className="font-cinzel text-xl font-bold text-gold-400">Pooja Sankalpam</Link>
+            <div className="flex items-center gap-3">
+              <Link href="/dashboard" className="sacred-pill text-cream-200 border-gold-600/40 hover:text-gold-400">Back to Dashboard</Link>
+              <button onClick={() => { logout(); router.push('/login') }} className="rounded-md border border-gold-600/40 px-3 py-1.5 text-sm text-cream-300 hover:bg-sacred-700 transition-colors">Logout</button>
             </div>
           </div>
         </div>
       </nav>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="sacred-card p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Family Members</h2>
+            <h2 className="font-cinzel text-2xl font-bold text-sacred-800">Family Members</h2>
             <button
               onClick={() => setShowForm(!showForm)}
-              className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700"
+              className="gold-btn"
             >
               {showForm ? 'Cancel' : 'Add Family Member'}
             </button>
@@ -683,10 +673,7 @@ export default function FamilyPage() {
             )}
           </div>
 
-              <button
-                type="submit"
-                className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700"
-              >
+              <button type="submit" className="gold-btn">
                 {editingId ? 'Update Member' : 'Add Member'}
               </button>
             </form>
@@ -694,28 +681,28 @@ export default function FamilyPage() {
 
           <div className="space-y-4">
             {members.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No family members added yet.</p>
+              <p className="text-stone-500 text-center py-8">No family members added yet.</p>
             ) : (
               members.map((member) => (
-                <div key={member.id} className="border rounded-lg p-4 flex justify-between items-center">
+                <div key={member.id} className="border border-cream-300 rounded-lg p-4 flex justify-between items-center bg-cream-50">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-lg">{member.name}</h3>
+                      <h3 className="font-cinzel font-bold text-lg text-sacred-700">{member.name}</h3>
                       {member.is_deceased && (
-                        <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                        <span className="text-xs bg-stone-200 text-stone-600 px-2 py-0.5 rounded-full font-medium">
                           Deceased
                         </span>
                       )}
                     </div>
-                    <p className="text-gray-600">{member.relation} • {member.gender}</p>
+                    <p className="text-stone-600 text-sm">{member.relation} • {member.gender}</p>
                     {member.date_of_birth && (
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-stone-500">
                         Born: {new Date(member.date_of_birth).toLocaleDateString()} in {member.birth_city}, {member.birth_state}
                       </p>
                     )}
                     {member.is_deceased && (
                       <div className="mt-1 space-y-0.5">
-                        <p className="text-sm text-gray-400">
+                        <p className="text-sm text-stone-400">
                           {member.date_of_death
                             ? <>Died: {new Date(member.date_of_death).toLocaleDateString()}
                                 {member.time_of_death && <> at {member.time_of_death}</>}
@@ -727,7 +714,7 @@ export default function FamilyPage() {
                           }
                         </p>
                         {(member.death_vara || member.death_tithi) && (
-                          <div className="flex gap-x-4 text-xs text-indigo-700 bg-indigo-50 rounded px-2 py-1 w-fit mt-1">
+                          <div className="flex gap-x-4 text-xs text-sacred-700 bg-gold-500/10 border border-gold-500/30 rounded px-2 py-1 w-fit mt-1">
                             {member.death_vara  && <span>Vaaram: <b>{member.death_vara}</b></span>}
                             {member.death_tithi && <span>Moon Day: <b>{member.death_tithi}</b></span>}
                           </div>
@@ -735,19 +722,9 @@ export default function FamilyPage() {
                       </div>
                     )}
                   </div>
-                  <div className="space-x-2">
-                    <button
-                      onClick={() => startEdit(member)}
-                      className="px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(member.id)}
-                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                    >
-                      Delete
-                    </button>
+                  <div className="space-x-2 shrink-0">
+                    <button onClick={() => startEdit(member)} className="px-3 py-1 bg-cream-200 text-sacred-700 rounded hover:bg-cream-300 text-sm border border-cream-300">Edit</button>
+                    <button onClick={() => handleDelete(member.id)} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">Delete</button>
                   </div>
                 </div>
               ))
