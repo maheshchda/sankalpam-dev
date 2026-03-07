@@ -14,7 +14,6 @@ export default function VerifyPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // Check for token in URL parameters
   useEffect(() => {
     const token = searchParams.get('token')
     const type = searchParams.get('type')
@@ -27,16 +26,10 @@ export default function VerifyPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      await api.post('/api/auth/verify', {
-        token: emailToken,
-        verification_type: 'email',
-      })
+      await api.post('/api/auth/verify', { token: emailToken, verification_type: 'email' })
       toast.success('Email verified successfully!')
       setEmailToken('')
-      // Refresh user data to reflect verification status
-      if (refreshUser) {
-        await refreshUser()
-      }
+      if (refreshUser) await refreshUser()
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Email verification failed')
     } finally {
@@ -48,17 +41,10 @@ export default function VerifyPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      await api.post('/api/auth/verify', {
-        token: phoneToken,
-        verification_type: 'phone',
-      })
+      await api.post('/api/auth/verify', { token: phoneToken, verification_type: 'phone' })
       toast.success('Phone verified successfully!')
       setPhoneToken('')
-      // Refresh user data to reflect verification status
-      if (refreshUser) {
-        await refreshUser()
-      }
-      // Redirect admins to admin portal, regular users to dashboard
+      if (refreshUser) await refreshUser()
       if (user?.is_admin) {
         router.push('/admin')
       } else {
@@ -71,52 +57,52 @@ export default function VerifyPage() {
     }
   }
 
+  const inputCls = 'w-full px-3 py-2 rounded-md border border-cream-300 bg-white text-stone-800 focus:outline-none focus:ring-1 focus:ring-gold-500 focus:border-gold-500'
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 py-12 px-4">
-      <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold text-center mb-6">Verify Your Account</h2>
-        
-        <div className="space-y-6">
-          {/* Email Verification */}
-          <div className="border-b pb-6">
-            <h3 className="text-lg font-medium mb-4">Verify Email</h3>
+    <div className="page-bg flex flex-col items-center justify-center py-16 px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="mx-auto h-14 w-14 rounded-full bg-sacred-800 flex items-center justify-center mb-3">
+            <span className="font-cinzel text-gold-400 font-bold">PS</span>
+          </div>
+          <h2 className="font-cinzel text-3xl font-bold text-sacred-800">Verify Account</h2>
+          <p className="text-stone-500 mt-2">Complete your account verification</p>
+        </div>
+
+        <div className="sacred-card p-8 space-y-8">
+          <div>
+            <h3 className="font-cinzel text-lg font-semibold text-sacred-700 mb-4">Verify Email</h3>
             <form onSubmit={handleEmailVerify} className="space-y-4">
               <input
                 type="text"
                 placeholder="Enter email verification token"
-                className="w-full px-3 py-2 border rounded-md"
+                className={inputCls}
                 value={emailToken}
                 onChange={(e) => setEmailToken(e.target.value)}
                 required
               />
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50"
-              >
+              <button type="submit" disabled={loading} className="gold-btn w-full py-2.5">
                 Verify Email
               </button>
             </form>
           </div>
 
-          {/* Phone Verification */}
+          <div className="gold-divider" />
+
           <div>
-            <h3 className="text-lg font-medium mb-4">Verify Phone (OTP)</h3>
+            <h3 className="font-cinzel text-lg font-semibold text-sacred-700 mb-4">Verify Phone (OTP)</h3>
             <form onSubmit={handlePhoneVerify} className="space-y-4">
               <input
                 type="text"
                 placeholder="Enter 6-digit OTP"
-                className="w-full px-3 py-2 border rounded-md"
+                className={inputCls}
                 value={phoneToken}
                 onChange={(e) => setPhoneToken(e.target.value)}
                 maxLength={6}
                 required
               />
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50"
-              >
+              <button type="submit" disabled={loading} className="gold-btn w-full py-2.5">
                 Verify Phone
               </button>
             </form>
@@ -126,4 +112,3 @@ export default function VerifyPage() {
     </div>
   )
 }
-

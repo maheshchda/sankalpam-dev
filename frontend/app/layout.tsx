@@ -1,15 +1,16 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Cinzel } from 'next/font/google'
 import './globals.css'
 import 'react-toastify/dist/ReactToastify.css'
 import { Providers } from './providers'
 import ToastProvider from '../components/ToastProvider'
 import ExtensionCompatibility from '../components/ExtensionCompatibility'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
+const cinzel = Cinzel({ subsets: ['latin'], variable: '--font-cinzel', weight: ['400', '600', '700', '900'] })
 
 export const metadata: Metadata = {
-  title: 'Sankalpam - Pooja Management',
+  title: 'Pooja Sankalpam',
   description: 'Comprehensive pooja management with personalized sankalpam generation',
 }
 
@@ -20,7 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={`${inter.variable} ${cinzel.variable} ${inter.className}`}>
         <Providers>
           <ExtensionCompatibility />
           {children}
@@ -30,4 +31,3 @@ export default function RootLayout({
     </html>
   )
 }
-

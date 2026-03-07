@@ -21,6 +21,8 @@ const LANGUAGES = [
   { value: 'punjabi', label: 'Punjabi' },
 ]
 
+const inputCls = 'mt-1 block w-full rounded-md border-cream-300 bg-white shadow-sm focus:border-gold-500 focus:ring-gold-500 focus:ring-1 text-stone-800'
+
 export default function RegisterPage() {
   const router = useRouter()
   const { register, login } = useAuth()
@@ -44,31 +46,24 @@ export default function RegisterPage() {
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
+    setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-
     try {
       await register(formData)
       toast.success('Registration successful!')
-      // Auto-login after registration and redirect appropriately
       try {
         const loggedInUser = await login(formData.username, formData.password)
         toast.success('Logged in successfully!')
-        // Redirect admins to admin portal, regular users to dashboard
         if (loggedInUser?.is_admin) {
           router.push('/admin')
         } else {
           router.push('/dashboard')
         }
-      } catch (loginError: any) {
-        // If auto-login fails, redirect to login page
+      } catch {
         toast.info('Registration successful. Please login.')
         router.push('/login')
       }
@@ -79,229 +74,129 @@ export default function RegisterPage() {
     }
   }
 
+  const sectionHeading = (text: string) => (
+    <h3 className="font-cinzel text-lg font-semibold text-sacred-700 mb-4 flex items-center gap-2">
+      <span className="inline-block h-0.5 w-6 bg-gold-500" />
+      {text}
+    </h3>
+  )
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-        <h2 className="text-3xl font-extrabold text-center text-gray-900 mb-8">
-          Create Your Account
-        </h2>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Account Information */}
-          <div className="border-b pb-4">
-            <h3 className="text-lg font-medium mb-4">Account Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Username *</label>
-                <input
-                  type="text"
-                  name="username"
-                  required
-                  autoComplete="username"
-                  suppressHydrationWarning
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  value={formData.username}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Password *</label>
-                <input
-                  type="password"
-                  name="password"
-                  required
-                  minLength={8}
-                  autoComplete="new-password"
-                  suppressHydrationWarning
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  value={formData.password}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Email *</label>
-                <input
-                  type="email"
-                  name="email"
-                  required
-                  autoComplete="email"
-                  suppressHydrationWarning
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  value={formData.email}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Phone *</label>
-                <input
-                  type="tel"
-                  name="phone"
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  value={formData.phone}
-                  onChange={handleChange}
-                />
+    <div className="page-bg py-12 px-4">
+      <div className="max-w-2xl mx-auto">
+        <div className="text-center mb-8">
+          <div className="mx-auto h-14 w-14 rounded-full bg-sacred-800 flex items-center justify-center mb-3">
+            <span className="font-cinzel text-gold-400 font-bold">PS</span>
+          </div>
+          <h2 className="font-cinzel text-3xl font-bold text-sacred-800">Create Your Account</h2>
+          <p className="text-stone-500 mt-2">Join the Pooja Sankalpam community</p>
+        </div>
+
+        <div className="sacred-card p-8">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div>
+              {sectionHeading('Account Information')}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700">Username *</label>
+                  <input type="text" name="username" required autoComplete="username" suppressHydrationWarning className={inputCls} value={formData.username} onChange={handleChange} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700">Password *</label>
+                  <input type="password" name="password" required minLength={8} autoComplete="new-password" suppressHydrationWarning className={inputCls} value={formData.password} onChange={handleChange} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700">Email *</label>
+                  <input type="email" name="email" required autoComplete="email" suppressHydrationWarning className={inputCls} value={formData.email} onChange={handleChange} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700">Phone *</label>
+                  <input type="tel" name="phone" required className={inputCls} value={formData.phone} onChange={handleChange} />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Personal Information */}
-          <div className="border-b pb-4">
-            <h3 className="text-lg font-medium mb-4">Personal Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">First Name *</label>
-                <input
-                  type="text"
-                  name="first_name"
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  value={formData.first_name}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Last Name *</label>
-                <input
-                  type="text"
-                  name="last_name"
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  value={formData.last_name}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Gotram *</label>
-                <input
-                  type="text"
-                  name="gotram"
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  value={formData.gotram}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Preferred Language *</label>
-                <select
-                  name="preferred_language"
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  value={formData.preferred_language}
-                  onChange={handleChange}
-                >
-                  {LANGUAGES.map((lang) => (
-                    <option key={lang.value} value={lang.value}>
-                      {lang.label}
-                    </option>
-                  ))}
-                </select>
+            <div className="gold-divider" />
+
+            <div>
+              {sectionHeading('Personal Information')}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700">First Name *</label>
+                  <input type="text" name="first_name" required className={inputCls} value={formData.first_name} onChange={handleChange} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700">Last Name *</label>
+                  <input type="text" name="last_name" required className={inputCls} value={formData.last_name} onChange={handleChange} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700">Gotram *</label>
+                  <input type="text" name="gotram" required className={inputCls} value={formData.gotram} onChange={handleChange} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700">Preferred Language *</label>
+                  <select name="preferred_language" required className={inputCls} value={formData.preferred_language} onChange={handleChange}>
+                    {LANGUAGES.map((lang) => (
+                      <option key={lang.value} value={lang.value}>{lang.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Birth Information */}
-          <div className="border-b pb-4">
-            <h3 className="text-lg font-medium mb-4">Birth Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Date of Birth *</label>
-                <input
-                  type="date"
-                  name="birth_date"
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  value={formData.birth_date}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Time of Birth (24hr) *</label>
-                <input
-                  type="time"
-                  name="birth_time"
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  value={formData.birth_time}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Birth City *</label>
-                <input
-                  type="text"
-                  name="birth_city"
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  value={formData.birth_city}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Birth State *</label>
-                <input
-                  type="text"
-                  name="birth_state"
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  value={formData.birth_state}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Birth Country *</label>
-                <input
-                  type="text"
-                  name="birth_country"
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  value={formData.birth_country}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Janma Nakshatra (Birth Star)</label>
-                <input
-                  type="text"
-                  name="birth_nakshatra"
-                  placeholder="e.g., Ashwini, Bharani, Krittika"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  value={formData.birth_nakshatra}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Janma Raasi (Birth Zodiac Sign)</label>
-                <input
-                  type="text"
-                  name="birth_rashi"
-                  placeholder="e.g., Mesha, Vrishabha, Mithuna"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  value={formData.birth_rashi}
-                  onChange={handleChange}
-                />
+            <div className="gold-divider" />
+
+            <div>
+              {sectionHeading('Birth Information')}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700">Date of Birth *</label>
+                  <input type="date" name="birth_date" required className={inputCls} value={formData.birth_date} onChange={handleChange} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700">Time of Birth (24hr) *</label>
+                  <input type="time" name="birth_time" required className={inputCls} value={formData.birth_time} onChange={handleChange} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700">Birth City *</label>
+                  <input type="text" name="birth_city" required className={inputCls} value={formData.birth_city} onChange={handleChange} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700">Birth State *</label>
+                  <input type="text" name="birth_state" required className={inputCls} value={formData.birth_state} onChange={handleChange} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700">Birth Country *</label>
+                  <input type="text" name="birth_country" required className={inputCls} value={formData.birth_country} onChange={handleChange} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700">Janma Nakshatra (Birth Star)</label>
+                  <input type="text" name="birth_nakshatra" placeholder="e.g., Ashwini, Bharani, Krittika" className={inputCls} value={formData.birth_nakshatra} onChange={handleChange} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700">Janma Raasi (Birth Zodiac Sign)</label>
+                  <input type="text" name="birth_rashi" placeholder="e.g., Mesha, Vrishabha, Mithuna" className={inputCls} value={formData.birth_rashi} onChange={handleChange} />
+                </div>
               </div>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            suppressHydrationWarning
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50"
-          >
-            {loading ? 'Registering...' : 'Register'}
-          </button>
+            <button
+              type="submit"
+              disabled={loading}
+              suppressHydrationWarning
+              className="gold-btn w-full py-3"
+            >
+              {loading ? 'Registering...' : 'Create Account'}
+            </button>
 
-          <div className="text-center">
-            <Link href="/login" className="text-sm text-amber-600 hover:text-amber-500">
-              Already have an account? Sign in
-            </Link>
-          </div>
-        </form>
+            <div className="text-center">
+              <Link href="/login" className="gold-link text-sm">
+                Already have an account? Sign in
+              </Link>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   )
 }
-

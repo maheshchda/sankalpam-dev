@@ -6,6 +6,8 @@ import { toast } from 'react-toastify'
 import Link from 'next/link'
 import api from '@/lib/api'
 
+const inputCls = 'block w-full rounded-md border-cream-300 bg-white shadow-sm focus:border-gold-500 focus:ring-gold-500 focus:ring-1 placeholder-stone-400 text-stone-800'
+
 export default function ResetPasswordPage() {
   const [token, setToken] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -18,39 +20,20 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     setMounted(true)
-    // Get token from URL query parameter if present
     const tokenParam = searchParams.get('token')
-    if (tokenParam) {
-      setToken(tokenParam)
-    }
+    if (tokenParam) setToken(tokenParam)
   }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match')
-      return
-    }
-
-    if (newPassword.length < 8) {
-      toast.error('Password must be at least 8 characters long')
-      return
-    }
-
+    if (newPassword !== confirmPassword) { toast.error('Passwords do not match'); return }
+    if (newPassword.length < 8) { toast.error('Password must be at least 8 characters long'); return }
     setLoading(true)
-
     try {
-      await api.post('/api/auth/reset-password', {
-        token,
-        new_password: newPassword
-      })
-      toast.success('Password has been reset successfully!')
+      await api.post('/api/auth/reset-password', { token, new_password: newPassword })
+      toast.success('Password reset successfully!')
       setSuccess(true)
-      // Redirect to login after 2 seconds
-      setTimeout(() => {
-        router.push('/login')
-      }, 2000)
+      setTimeout(() => router.push('/login'), 2000)
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to reset password')
     } finally {
@@ -60,121 +43,63 @@ export default function ResetPasswordPage() {
 
   if (!mounted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-100">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900">Loading...</h2>
-        </div>
+      <div className="page-bg flex items-center justify-center">
+        <p className="font-cinzel text-sacred-700 text-xl">Loading...</p>
       </div>
     )
   }
 
-  if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-100 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-lg">
-          <div className="text-center">
-            <h2 className="text-3xl font-extrabold text-gray-900 mb-4">
-              Password Reset Successful!
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Your password has been reset successfully. Redirecting to login...
-            </p>
-            <Link
-              href="/login"
-              className="text-amber-600 hover:text-amber-500 font-medium"
-            >
-              Go to Login
-            </Link>
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
+    <div className="page-bg flex flex-col items-center justify-center py-16 px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="mx-auto h-14 w-14 rounded-full bg-sacred-800 flex items-center justify-center mb-3">
+            <span className="font-cinzel text-gold-400 font-bold">PS</span>
           </div>
         </div>
+        <div className="sacred-card p-8">{children}</div>
       </div>
+    </div>
+  )
+
+  if (success) {
+    return (
+      <Wrapper>
+        <div className="text-center space-y-4">
+          <h2 className="font-cinzel text-2xl font-bold text-sacred-800">Password Reset!</h2>
+          <p className="text-stone-600">Your password has been reset. Redirecting to login...</p>
+          <Link href="/login" className="gold-link font-medium">Go to Login</Link>
+        </div>
+      </Wrapper>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-lg">
+    <Wrapper>
+      <h2 className="font-cinzel text-2xl font-bold text-sacred-800 text-center mb-2">Reset Password</h2>
+      <p className="text-stone-500 text-sm text-center mb-6">Enter your reset token and new password.</p>
+      <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Reset Password
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Enter your reset token and new password.
-          </p>
+          <label htmlFor="token" className="sr-only">Reset Token</label>
+          <input id="token" name="token" type="text" required suppressHydrationWarning className={inputCls} placeholder="Reset token" value={token} onChange={(e) => setToken(e.target.value)} />
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="token" className="sr-only">
-                Reset Token
-              </label>
-              <input
-                id="token"
-                name="token"
-                type="text"
-                required
-                suppressHydrationWarning
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
-                placeholder="Reset token"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="newPassword" className="sr-only">
-                New Password
-              </label>
-              <input
-                id="newPassword"
-                name="newPassword"
-                type="password"
-                required
-                minLength={8}
-                suppressHydrationWarning
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
-                placeholder="New password (min 8 characters)"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="confirmPassword" className="sr-only">
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                minLength={8}
-                suppressHydrationWarning
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
-                placeholder="Confirm new password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
-            </div>
-          </div>
+        <div>
+          <label htmlFor="newPassword" className="sr-only">New Password</label>
+          <input id="newPassword" name="newPassword" type="password" required minLength={8} suppressHydrationWarning className={inputCls} placeholder="New password (min 8 characters)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+        </div>
+        <div>
+          <label htmlFor="confirmPassword" className="sr-only">Confirm Password</label>
+          <input id="confirmPassword" name="confirmPassword" type="password" required minLength={8} suppressHydrationWarning className={inputCls} placeholder="Confirm new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+        </div>
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              suppressHydrationWarning
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50"
-            >
-              {loading ? 'Resetting...' : 'Reset Password'}
-            </button>
-          </div>
+        <button type="submit" disabled={loading} suppressHydrationWarning className="gold-btn w-full py-2.5">
+          {loading ? 'Resetting...' : 'Reset Password'}
+        </button>
 
-          <div className="text-center">
-            <Link href="/login" className="text-sm text-amber-600 hover:text-amber-500">
-              Back to Login
-            </Link>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="text-center">
+          <Link href="/login" className="gold-link text-sm">Back to Login</Link>
+        </div>
+      </form>
+    </Wrapper>
   )
 }
-

@@ -3,32 +3,88 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+  --sacred-900: #0f0404;
+  --sacred-800: #1a0808;
+  --sacred-700: #2d1010;
+  --sacred-600: #4a1a1a;
+  --gold-400: #f0b429;
+  --gold-500: #d4a017;
+  --gold-600: #c8860a;
+  --cream-100: #fdf8f0;
+  --cream-200: #f5ede0;
+  --cream-300: #edddc8;
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background-color: var(--cream-100);
+  color: #2d1f10;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+@layer components {
+  /* Dark maroon header */
+  .sacred-header {
+    @apply bg-sacred-800 text-cream-100 shadow-lg border-b border-gold-700/30;
+  }
+
+  /* Dark maroon footer */
+  .sacred-footer {
+    @apply bg-sacred-800 text-cream-200 border-t border-gold-700/30;
+  }
+
+  /* Warm cream page background */
+  .page-bg {
+    @apply bg-cream-100 min-h-screen;
+  }
+
+  /* Content card with gold border */
+  .sacred-card {
+    @apply bg-white rounded-xl shadow-md ring-1 ring-gold-500/30 border border-cream-300;
+  }
+
+  /* Primary gold button */
+  .gold-btn {
+    @apply bg-gold-600 hover:bg-gold-500 text-sacred-900 font-semibold rounded-md px-4 py-2 transition-colors focus:outline-none focus:ring-2 focus:ring-gold-400 focus:ring-offset-2 disabled:opacity-50;
+  }
+
+  /* Secondary sacred/maroon button */
+  .sacred-btn {
+    @apply bg-sacred-700 hover:bg-sacred-600 text-cream-100 font-semibold rounded-md px-4 py-2 transition-colors focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 disabled:opacity-50;
+  }
+
+  /* Ornamental gold divider */
+  .gold-divider {
+    @apply border-t border-gold-500/40 my-4;
+  }
+
+  /* Section heading in Cinzel gold */
+  .sacred-heading {
+    @apply font-cinzel text-sacred-800 font-bold;
+  }
+
+  /* Gold text link */
+  .gold-link {
+    @apply text-gold-600 hover:text-gold-500 transition-colors;
+  }
+
+  /* Form input with gold focus ring */
+  .sacred-input {
+    @apply block w-full rounded-md border-cream-300 bg-white shadow-sm
+      focus:border-gold-500 focus:ring-gold-500 focus:ring-1
+      placeholder-stone-400 text-stone-800;
+  }
+
+  /* Nav pill */
+  .sacred-pill {
+    @apply rounded-full border border-gold-600/40 bg-cream-100 px-4 py-1.5 text-sm font-medium text-sacred-700 hover:bg-cream-200 hover:border-gold-500 transition-colors;
+  }
+
+  /* Admin sidebar link active */
+  .admin-nav-active {
+    @apply bg-gold-600 text-sacred-900 font-semibold;
+  }
+
+  /* Admin sidebar link */
+  .admin-nav-item {
+    @apply text-cream-200 hover:bg-sacred-700 hover:text-cream-50 transition-colors;
   }
 }
-
