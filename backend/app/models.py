@@ -182,6 +182,7 @@ class Pooja(Base):
     duration_minutes = Column(Integer)  # Estimated duration
     is_active = Column(Boolean, default=True)
     created_by = Column(Integer, ForeignKey("users.id"))  # Admin user
+    state_codes = Column(Text, nullable=True)  # JSON array e.g. ["IN-TN","IN-KA"]; null = all states
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

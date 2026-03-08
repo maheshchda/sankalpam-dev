@@ -20,41 +20,63 @@ async def lifespan(app: FastAPI):
     # Seed default poojas (Ganesh Pooja, Lakshmi Pooja) if missing
     db = SessionLocal()
     try:
+        # Home-hosted poojas (typically invite guests). state_codes: JSON array or None=all states.
+        # Format: (name, description, duration_mins, state_codes_json)
         DEFAULT_POOJAS = [
-            ("Ganesh Pooja",           "Ganesha Pooja for auspicious beginnings and removal of obstacles.", 30),
-            ("Lakshmi Pooja",          "Sri Mahalakshmi Pooja for prosperity, wealth, and abundance.", 30),
-            ("Satyanarayan Pooja",     "Sri Satyanarayan Katha and Pooja for blessings and fulfilment of wishes.", 120),
-            ("Rudrabhishek",           "Abhishek of Lord Shiva with sacred offerings for peace and prosperity.", 90),
-            ("Navgraha Pooja",         "Pooja for the nine planetary deities to mitigate doshas and seek blessings.", 60),
-            ("Durga Pooja",            "Worship of Goddess Durga for strength, protection, and victory.", 60),
-            ("Saraswati Pooja",        "Worship of Goddess Saraswati for knowledge, wisdom, and learning.", 45),
-            ("Hanuman Pooja",          "Hanuman Pooja for courage, devotion, and protection from evil.", 45),
-            ("Kali Pooja",             "Worship of Goddess Kali for liberation and protection.", 60),
-            ("Vastu Pooja",            "Vastu Shanti Pooja to purify a new home or building.", 90),
-            ("Gruhapravesam",          "Sacred house-warming ceremony with Vedic rituals.", 120),
-            ("Ayush Homam",            "Homam for longevity, good health, and a blessed life.", 90),
-            ("Mrityunjaya Homam",      "Maha Mrityunjaya Homam for good health and freedom from disease.", 120),
-            ("Sudarshana Homam",       "Sudarshana Homam for protection and removal of negative energies.", 90),
-            ("Navagraha Homam",        "Fire ritual for all nine planetary deities to balance cosmic energies.", 120),
-            ("Ganapathi Homam",        "Fire ritual for Lord Ganesha to remove obstacles and bestow success.", 90),
-            ("Lakshmi Kubera Pooja",   "Combined worship of Goddess Lakshmi and Lord Kubera for wealth.", 60),
-            ("Satyanarayana Vratam",   "Monthly Satyanarayan Vrat for family well-being and divine grace.", 120),
-            ("Seemantham",             "Baby shower ceremony with Vedic blessings for mother and child.", 90),
-            ("Naamkaran (Naming)",     "Sacred naming ceremony for a newborn child.", 60),
-            ("Annaprasana",            "First rice-feeding ceremony for an infant.", 60),
-            ("Upanayanam",             "Sacred thread ceremony marking a boy's entry into studentship.", 180),
-            ("Vivaha (Wedding)",       "Traditional Vedic wedding ceremony.", 240),
-            ("Sathabhishekam",         "80th birthday celebration ritual for longevity and blessings.", 120),
-            ("Pitru Tarpan",           "Ancestral offerings and prayers on auspicious occasions.", 60),
-            ("Ekadashi Pooja",         "Special prayers on Ekadashi for spiritual merit.", 45),
-            ("Pradosh Pooja",          "Evening prayers to Lord Shiva on Pradosh days.", 45),
-            ("Navaratri Pooja",        "Nine-night festival worship of Goddess Durga.", 60),
-            ("Diwali Lakshmi Pooja",   "Lakshmi Pooja on the auspicious night of Diwali.", 60),
-            ("Sankranti Pooja",        "Makar Sankranti/Ugadi rituals for new beginnings.", 60),
+            # Pan-India (state_codes=None)
+            ("Satyanarayan Pooja",     "Sri Satyanarayan Katha at home — housewarming, birthdays, anniversaries. Guests share prasad.", 120, None),
+            ("Ganesh Pooja",           "Ganesha Pooja at home for auspicious beginnings. Common during Ganesh Chaturthi.", 45, None),
+            ("Lakshmi Pooja",          "Sri Mahalakshmi Pooja for prosperity. Often during Diwali with family and friends.", 45, None),
+            ("Gruhapravesam",          "House-warming ceremony. Vastu Shanti with invited family and friends.", 120, None),
+            ("Vastu Pooja",            "Vastu Shanti to purify a new home. Performed before moving in.", 90, None),
+            ("Navgraha Pooja",         "Nine planetary deities to mitigate doshas. Home ceremony with priest.", 60, None),
+            ("Rudrabhishek",           "Abhishek of Lord Shiva for peace and prosperity. Home or temple.", 90, None),
+            ("Durga Pooja",            "Goddess Durga worship during Navratri. Home altar with guests.", 60, None),
+            ("Navaratri Pooja",        "Nine-night Goddess worship. Home celebration with family and friends.", 60, None),
+            ("Saraswati Pooja",        "Goddess Saraswati for knowledge. Basant Panchami, academic year start.", 45, None),
+            ("Hanuman Pooja",          "Hanuman Pooja for courage and protection. Home ceremony.", 45, None),
+            ("Ayush Homam",            "Fire ritual for longevity. Birthdays, recovery from illness.", 90, None),
+            ("Mrityunjaya Homam",      "Maha Mrityunjaya Homam for health and freedom from disease.", 120, None),
+            ("Ganapathi Homam",        "Fire ritual for Lord Ganesha. New ventures, exams.", 90, None),
+            ("Navagraha Homam",        "Fire ritual for nine planets. Balance cosmic energies.", 120, None),
+            ("Ayudha Pooja",           "Blessing of vehicles and tools. During Navratri/Dasara.", 45, None),
+            ("Lakshmi Kubera Pooja",   "Lakshmi and Kubera for wealth. Home ceremony.", 60, None),
+            ("Diwali Lakshmi Pooja",   "Lakshmi Pooja on Diwali night. Family and guests.", 60, None),
+            ("Satyanarayana Vratam",   "Monthly Satyanarayan Vrat. Family well-being.", 120, None),
+            ("Kali Pooja",             "Goddess Kali worship. Diwali night in Bengal.", 60, None),
+            ("Pitru Tarpan",           "Ancestral offerings. Pitru Paksha, Shraddha.", 60, None),
+            ("Ekadashi Pooja",         "Special prayers on Ekadashi. Home observance.", 45, None),
+            ("Pradosh Pooja",          "Evening Shiva prayers on Pradosh days.", 45, None),
+            ("Sankranti Pooja",        "Makar Sankranti/Ugadi. Harvest, new beginnings.", 60, None),
+            ("Seemantham",             "Baby shower with Vedic blessings. Invite family.", 90, None),
+            ("Naamkaran (Naming)",     "Sacred naming ceremony for newborn.", 60, None),
+            ("Annaprasana",            "First rice-feeding ceremony for infant.", 60, None),
+            ("Upanayanam",             "Sacred thread ceremony. Major life event with guests.", 180, None),
+            ("Vivaha (Wedding)",       "Traditional Vedic wedding. Large gathering.", 240, None),
+            ("Sathabhishekam",         "80th birthday celebration. Longevity ritual.", 120, None),
+            # South India — Varalakshmi Vratam (TN, KA, AP, TG)
+            ("Varalakshmi Vratam",     "Married women worship Goddess Lakshmi. Home ceremony, invite family.", 90, '["IN-TN","IN-KA","IN-AP","IN-TG"]'),
+            # Tamil Nadu — Pongal, Kolu
+            ("Pongal",                 "Harvest festival. Home celebration with family, new crop offering.", 60, '["IN-TN"]'),
+            ("Kolu / Bommai Kolu",     "Navratri doll display. Guests visit to view and receive prasad.", 60, '["IN-TN"]'),
+            # Maharashtra — Gudi Padwa
+            ("Gudi Padwa",             "Maharashtrian New Year. Home ceremony with shrikhand, neem.", 60, '["IN-MH"]'),
+            # North India — Mata Ki Chowki / Jagran
+            ("Mata Ki Chowki",         "Maa Durga devotional program. Bhajan mandali, 3–4 hours. North India.", 180, '["IN-PB","IN-DL","IN-HR","IN-UP","IN-RJ","IN-JK"]'),
+            ("Mata Ka Jagran",         "All-night Maa Durga devotion. Tuesday/Saturday. North India.", 360, '["IN-PB","IN-DL","IN-HR","IN-UP","IN-RJ","IN-JK"]'),
+            # Bihar, UP, Jharkhand — Chhath
+            ("Chhath Puja",            "Sun God worship. Four-day ritual. Can be done at home with water setup.", 120, '["IN-BR","IN-UP","IN-JH"]'),
+            # Telangana — Bathukamma
+            ("Bathukamma",             "Flower festival. Women arrange flowers, home celebration.", 60, '["IN-TG"]'),
+            # Kerala — Onam
+            ("Onam Sadya",             "Onam harvest feast. Home celebration with family, floral pookalam.", 90, '["IN-KL"]'),
         ]
-        for (pname, pdesc, pdur) in DEFAULT_POOJAS:
-            if not db.query(Pooja).filter(Pooja.name == pname).first():
-                db.add(Pooja(name=pname, description=pdesc, duration_minutes=pdur, is_active=True, created_by=None))
+        for (pname, pdesc, pdur, scodes) in DEFAULT_POOJAS:
+            existing = db.query(Pooja).filter(Pooja.name == pname).first()
+            if not existing:
+                db.add(Pooja(name=pname, description=pdesc, duration_minutes=pdur, is_active=True, created_by=None, state_codes=scodes))
+            elif existing.state_codes is None and scodes:
+                existing.state_codes = scodes
         db.commit()
 
         # ── Seed default admin roles ──────────────────────────────────────────
