@@ -464,9 +464,10 @@ export default function FamilyPage() {
                         {lookupLoading ? 'Searching…' : 'Lookup & Fill'}
                       </button>
                     </div>
-                    {formData.linked_user_id && (
+                    {(formData.linked_user_id || formData.source_unique_id) && (
                       <p className="text-xs text-green-700 font-medium">
-                        ✓ Linked to account <span className="font-mono">{formData.linked_user_id}</span>
+                        ✓ Linked — their whole family will appear in your tree
+                        <span className="font-mono ml-1">{formData.linked_user_id || formData.source_unique_id}</span>
                         <button type="button" onClick={() => setFormData({ ...formData, unique_id: '', linked_user_id: '', source_unique_id: '' })}
                           className="ml-2 text-red-500 underline">Clear</button>
                       </p>
