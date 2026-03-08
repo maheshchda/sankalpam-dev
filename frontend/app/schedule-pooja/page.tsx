@@ -108,6 +108,7 @@ export default function SchedulePoojaPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ── Venue ────────────────────────────────────────────────────────────────
+  const [atMyHome, setAtMyHome] = useState(false)
   const [venuePlace, setVenuePlace] = useState('')
   const [venueStreetNo, setVenueStreetNo] = useState('')
   const [venueStreetName, setVenueStreetName] = useState('')
@@ -178,10 +179,52 @@ export default function SchedulePoojaPage() {
     setPoojaId(''); setCustomPooja(''); setScheduledDate('')
     setPoojaRegionState('')
     setInviteMessage(''); setImageFile(null); setImagePreview(null)
+    setAtMyHome(false)
     setVenuePlace(''); setVenueStreetNo(''); setVenueStreetName('')
     setVenueCountryCode(''); setVenueStateCode(''); setVenueCity(''); setVenueCoords('')
     setInvitees(Array.from({ length: INITIAL_ROWS }, EMPTY_INVITEE))
     if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  // ── At My Home: populate venue from user profile ──────────────────────────
+  const handleAtMyHomeChange = (checked: boolean) => {
+    setAtMyHome(checked)
+    if (checked && user) {
+      setVenuePlace('My Home')
+      setVenueCity(user.current_city || '')
+      const cc = (user.current_country || '').trim()
+      if (cc) {
+        const countryMatch = Country.getAllCountries().find(
+          c => c.name.toLowerCase() === cc.toLowerCase()
+        )
+        if (countryMatch) {
+          setVenueCountryCode(countryMatch.isoCode)
+          const states = State.getStatesOfCountry(countryMatch.isoCode)
+          const cs = (user.current_state || '').trim()
+          if (cs && states.length > 0) {
+            const stateMatch = states.find(s => s.name.toLowerCase() === cs.toLowerCase())
+            if (stateMatch) setVenueStateCode(stateMatch.isoCode)
+            else setVenueStateCode('')
+          } else {
+            setVenueStateCode('')
+          }
+        } else {
+          setVenueCountryCode('')
+          setVenueStateCode('')
+        }
+      } else {
+        setVenueCountryCode('')
+        setVenueStateCode('')
+      }
+    } else if (!checked) {
+      setVenuePlace('')
+      setVenueStreetNo('')
+      setVenueStreetName('')
+      setVenueCity('')
+      setVenueCountryCode('')
+      setVenueStateCode('')
+      setVenueCoords('')
+    }
   }
 
   // ── Submit ────────────────────────────────────────────────────────────────
@@ -384,6 +427,18 @@ export default function SchedulePoojaPage() {
             <div className="sacred-card p-6">
               <h2 className="font-cinzel text-lg font-bold text-sacred-800 mb-1">Venue</h2>
               <p className="text-xs text-stone-400 mb-4">Where will the Pooja be held?</p>
+
+              {/* At My Home checkbox */}
+              <label className="flex items-center gap-2 mb-4 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={atMyHome}
+                  onChange={e => handleAtMyHomeChange(e.target.checked)}
+                  className="w-4 h-4 rounded border-gold-500/50 text-gold-600 focus:ring-gold-500/30 accent-gold-500"
+                />
+                <span className="text-sm font-medium text-sacred-700">At My Home</span>
+                <span className="text-xs text-stone-400">— Use address from my profile</span>
+              </label>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
