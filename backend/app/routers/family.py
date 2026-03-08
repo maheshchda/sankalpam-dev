@@ -254,7 +254,7 @@ def _resolve_linked_member(m: FamilyMember, db: Session) -> FamilyMember:
                 relation=m.relation, gender=m.gender,
                 date_of_birth=u.birth_date, birth_time=u.birth_time,
                 birth_nakshatra=u.birth_nakshatra, birth_rashi=u.birth_rashi, birth_pada=u.birth_pada,
-                birth_city=u.birth_city or "", birth_state=u.birth_state or "", birth_country=u.birth_country or "",
+                birth_city=u.birth_city or "—", birth_state=u.birth_state or "—", birth_country=u.birth_country or "—",
                 is_deceased=False, date_of_death=None, time_of_death=None,
                 death_city=None, death_state=None, death_country=None,
                 death_tithi=None, death_paksha=None, death_nakshatra=None,
@@ -273,7 +273,7 @@ def _resolve_linked_member(m: FamilyMember, db: Session) -> FamilyMember:
                 relation=m.relation, gender=m.gender,
                 date_of_birth=src.date_of_birth, birth_time=src.birth_time,
                 birth_nakshatra=src.birth_nakshatra, birth_rashi=src.birth_rashi, birth_pada=src.birth_pada,
-                birth_city=src.birth_city or "", birth_state=src.birth_state or "", birth_country=src.birth_country or "",
+                birth_city=src.birth_city or "—", birth_state=src.birth_state or "—", birth_country=src.birth_country or "—",
                 is_deceased=src.is_deceased, date_of_death=src.date_of_death, time_of_death=src.time_of_death,
                 death_city=src.death_city, death_state=src.death_state, death_country=src.death_country,
                 death_tithi=src.death_tithi, death_paksha=src.death_paksha, death_nakshatra=src.death_nakshatra,
@@ -489,32 +489,35 @@ async def update_family_member(
             detail="Family member not found",
         )
 
-    member.name = member_data.name
-    member.last_name = member_data.last_name or None
     member.linked_user_id = (member_data.linked_user_id or "").strip().upper() or None
     member.source_unique_id = (member_data.source_unique_id or "").strip().upper() or None
     member.relation = member_data.relation
     member.gender = member_data.gender
-    member.date_of_birth = member_data.date_of_birth
-    member.birth_time = member_data.birth_time
-    member.birth_nakshatra = member_data.birth_nakshatra
-    member.birth_rashi = member_data.birth_rashi
-    if hasattr(member_data, "birth_pada"):
-        member.birth_pada = member_data.birth_pada
-    member.birth_city = member_data.birth_city
-    member.birth_state = member_data.birth_state
-    member.birth_country = member_data.birth_country
-    member.is_deceased = member_data.is_deceased
-    member.date_of_death = member_data.date_of_death if member_data.is_deceased else None
-    member.time_of_death = member_data.time_of_death if member_data.is_deceased else None
-    member.death_city = member_data.death_city if member_data.is_deceased else None
-    member.death_state = member_data.death_state if member_data.is_deceased else None
-    member.death_country = member_data.death_country if member_data.is_deceased else None
 
-    # Clear old panchang if deceased status removed or date changed
-    if not member_data.is_deceased:
-        member.death_tithi = member.death_paksha = member.death_nakshatra = None
-        member.death_vara  = member.death_yoga   = member.death_karana    = None
+    # Linked members: don't overwrite name/birth/death — display always from source
+    has_link = bool(member.linked_user_id or member.source_unique_id)
+    if not has_link:
+        member.name = member_data.name
+        member.last_name = member_data.last_name or None
+        member.date_of_birth = member_data.date_of_birth
+        member.birth_time = member_data.birth_time
+        member.birth_nakshatra = member_data.birth_nakshatra
+        member.birth_rashi = member_data.birth_rashi
+        if hasattr(member_data, "birth_pada"):
+            member.birth_pada = member_data.birth_pada
+        member.birth_city = member_data.birth_city
+        member.birth_state = member_data.birth_state
+        member.birth_country = member_data.birth_country
+        member.is_deceased = member_data.is_deceased
+        member.date_of_death = member_data.date_of_death if member_data.is_deceased else None
+        member.time_of_death = member_data.time_of_death if member_data.is_deceased else None
+        member.death_city = member_data.death_city if member_data.is_deceased else None
+        member.death_state = member_data.death_state if member_data.is_deceased else None
+        member.death_country = member_data.death_country if member_data.is_deceased else None
+
+        if not member_data.is_deceased:
+            member.death_tithi = member.death_paksha = member.death_nakshatra = None
+            member.death_vara = member.death_yoga = member.death_karana = None
 
     db.commit()
     db.refresh(member)
@@ -522,7 +525,8 @@ async def update_family_member(
     if member.is_deceased and member.date_of_death:
         background_tasks.add_task(_fill_death_panchang, member, db)
 
-    return member
+    resolved = _resolve_linked_member(member, db)
+    return resolved
 
 
 @router.post("/members/{member_id}/update", response_model=FamilyMemberResponse)
