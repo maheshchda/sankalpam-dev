@@ -28,6 +28,14 @@ async def create_schedule(
     invite_message: Optional[str] = Form(None),
     invitees_json: str = Form(default="[]"),
     image: Optional[UploadFile] = File(None),
+    # Venue
+    venue_place: Optional[str] = Form(None),
+    venue_street_number: Optional[str] = Form(None),
+    venue_street_name: Optional[str] = Form(None),
+    venue_city: Optional[str] = Form(None),
+    venue_state: Optional[str] = Form(None),
+    venue_country: Optional[str] = Form(None),
+    venue_coordinates: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -72,6 +80,13 @@ async def create_schedule(
         scheduled_date=sched_dt,
         invite_message=invite_message,
         image_path=image_path,
+        venue_place=venue_place or None,
+        venue_street_number=venue_street_number or None,
+        venue_street_name=venue_street_name or None,
+        venue_city=venue_city or None,
+        venue_state=venue_state or None,
+        venue_country=venue_country or None,
+        venue_coordinates=venue_coordinates or None,
     )
     db.add(schedule)
     db.flush()  # get schedule.id before adding invitees

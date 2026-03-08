@@ -271,6 +271,14 @@ class PoojaScheduleCreate(BaseModel):
     scheduled_date: date
     invite_message: Optional[str] = None
     invitees: List[InviteeCreate] = []
+    # Venue
+    venue_place: Optional[str] = Field(None, max_length=200)
+    venue_street_number: Optional[str] = Field(None, max_length=50)
+    venue_street_name: Optional[str] = Field(None, max_length=200)
+    venue_city: Optional[str] = Field(None, max_length=100)
+    venue_state: Optional[str] = Field(None, max_length=100)
+    venue_country: Optional[str] = Field(None, max_length=100)
+    venue_coordinates: Optional[str] = Field(None, max_length=150)
 
 class PoojaScheduleResponse(BaseModel):
     id: int
@@ -280,6 +288,14 @@ class PoojaScheduleResponse(BaseModel):
     scheduled_date: date
     invite_message: Optional[str] = None
     image_path: Optional[str] = None
+    # Venue
+    venue_place: Optional[str] = None
+    venue_street_number: Optional[str] = None
+    venue_street_name: Optional[str] = None
+    venue_city: Optional[str] = None
+    venue_state: Optional[str] = None
+    venue_country: Optional[str] = None
+    venue_coordinates: Optional[str] = None
     invitees: List[InviteeResponse] = []
     created_at: datetime
     model_config = {"from_attributes": True}
@@ -300,6 +316,14 @@ class RsvpInvitationView(BaseModel):
     rsvp_status: str
     rsvp_notes: Optional[str] = None
     attending_members: Optional[str] = None  # JSON
+    # Venue
+    venue_place: Optional[str] = None
+    venue_street_number: Optional[str] = None
+    venue_street_name: Optional[str] = None
+    venue_city: Optional[str] = None
+    venue_state: Optional[str] = None
+    venue_country: Optional[str] = None
+    venue_coordinates: Optional[str] = None
     model_config = {"from_attributes": True}
 
 class RsvpSubmit(BaseModel):

@@ -291,6 +291,16 @@ class PoojaSchedule(Base):
     scheduled_date = Column(DateTime, nullable=False)
     invite_message = Column(Text, nullable=True)
     image_path = Column(String(500), nullable=True)
+
+    # Venue
+    venue_place = Column(String(200), nullable=True)       # Event hall / temple name
+    venue_street_number = Column(String(50), nullable=True)
+    venue_street_name = Column(String(200), nullable=True)
+    venue_city = Column(String(100), nullable=True)
+    venue_state = Column(String(100), nullable=True)
+    venue_country = Column(String(100), nullable=True)
+    venue_coordinates = Column(String(150), nullable=True) # lat,lng or Google Maps URL
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User")
