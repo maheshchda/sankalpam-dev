@@ -88,10 +88,17 @@ export default function SchedulePoojaPage() {
   }, [user, authLoading, router])
 
   // ── Pooja & date ────────────────────────────────────────────────────────
+  const [poojaRegionCountry, setPoojaRegionCountry] = useState('IN')  // For filtering pooja list by state
+  const [poojaRegionState, setPoojaRegionState] = useState('')
   const [poojas, setPoojas] = useState<Pooja[]>([])
   const [poojaId, setPoojaId] = useState('')
   const [customPooja, setCustomPooja] = useState('')
   const [scheduledDate, setScheduledDate] = useState('')
+
+  const poojaRegionStates = useMemo(
+    () => poojaRegionCountry ? State.getStatesOfCountry(poojaRegionCountry) : [],
+    [poojaRegionCountry]
+  )
 
   // ── Invite content ───────────────────────────────────────────────────────
   const [inviteMessage, setInviteMessage] = useState('')
@@ -133,12 +140,20 @@ export default function SchedulePoojaPage() {
   const [rsvpSummary, setRsvpSummary] = useState<Record<number, RsvpSummary>>({})
   const [expandedRsvp, setExpandedRsvp] = useState<number | null>(null)
 
-  // ── Fetch poojas & schedules on mount ────────────────────────────────────
+  // ── Fetch schedules on mount ─────────────────────────────────────────────
   useEffect(() => {
     if (!user) return
-    api.get('/api/pooja').then(r => setPoojas(r.data)).catch(() => {})
     fetchSchedules()
   }, [user])
+
+  // ── Fetch poojas (filtered by state when selected) ───────────────────────
+  useEffect(() => {
+    if (!user) return
+    const stateParam = poojaRegionCountry && poojaRegionState
+      ? `?state=${poojaRegionCountry}-${poojaRegionState}`
+      : ''
+    api.get(`/api/pooja/list${stateParam}`).then(r => setPoojas(r.data)).catch(() => {})
+  }, [user, poojaRegionCountry, poojaRegionState])
 
   const fetchSchedules = async () => {
     try { const r = await api.get('/api/schedule'); setSchedules(r.data) } catch { /* silent */ }
