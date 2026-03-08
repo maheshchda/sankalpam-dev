@@ -177,6 +177,7 @@ export default function SchedulePoojaPage() {
 
   const resetForm = () => {
     setPoojaId(''); setCustomPooja(''); setScheduledDate('')
+    setPoojaRegionState('')
     setInviteMessage(''); setImageFile(null); setImagePreview(null)
     setVenuePlace(''); setVenueStreetNo(''); setVenueStreetName('')
     setVenueCountryCode(''); setVenueStateCode(''); setVenueCity(''); setVenueCoords('')
@@ -312,6 +313,26 @@ export default function SchedulePoojaPage() {
             <div className="sacred-card p-6">
               <h2 className="font-cinzel text-lg font-bold text-sacred-800 mb-4">Pooja Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {/* Region / State — filters pooja list by tradition */}
+                <div>
+                  <label className="block text-sm font-semibold text-sacred-700 mb-1">
+                    Your Region / State
+                  </label>
+                  <p className="text-xs text-stone-400 mb-1">Poojas are filtered by regional traditions</p>
+                  <select
+                    className="sacred-input w-full"
+                    value={poojaRegionState}
+                    onChange={e => { setPoojaRegionState(e.target.value); setPoojaId('') }}
+                  >
+                    <option value="">— All India (common poojas) —</option>
+                    {poojaRegionStates.map(s => (
+                      <option key={s.isoCode} value={s.isoCode}>
+                        {Country.getCountryByCode(poojaRegionCountry)?.flag} {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 {/* Pooja dropdown */}
                 <div className="md:col-span-2">
