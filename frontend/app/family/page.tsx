@@ -123,6 +123,7 @@ export default function FamilyPage() {
   const { user, logout } = useAuth()
   const router = useRouter()
   const [members, setMembers] = useState<FamilyMember[]>([])
+  const [extendedMembers, setExtendedMembers] = useState<FamilyMember[]>([])
   const [loading, setLoading] = useState(true)
   const [lookupLoading, setLookupLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
