@@ -405,7 +405,7 @@ export default function FamilyPage() {
             currentUser={{
               first_name: user.first_name,
               last_name: (user as any).last_name,
-              unique_id: user.unique_id,
+              unique_id: (user as any).unique_id,
             }}
           />
         )}
