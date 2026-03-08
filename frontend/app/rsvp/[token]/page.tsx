@@ -15,13 +15,20 @@ interface Invitation {
   invitee_name: string
   invitee_last_name?: string
   pooja_name: string
-  scheduled_date: string   // YYYY-MM-DD
+  scheduled_date: string
   invite_message?: string
   image_path?: string
   host_name: string
-  rsvp_status: string      // pending / attending / not_attending / maybe
+  rsvp_status: string
   rsvp_notes?: string
-  attending_members?: string  // JSON
+  attending_members?: string
+  venue_place?: string
+  venue_street_number?: string
+  venue_street_name?: string
+  venue_city?: string
+  venue_state?: string
+  venue_country?: string
+  venue_coordinates?: string
 }
 
 interface MemberInfo {
@@ -203,7 +210,29 @@ export default function RsvpPage() {
                 <span>📅</span>
                 <span className="font-medium">{formatDate(inv.scheduled_date)}</span>
               </div>
-              <p className="text-cream-400/70 text-xs">Hosted by <span className="text-gold-400">{inv.host_name}</span></p>
+              <p className="text-cream-400/70 text-xs mb-2">Hosted by <span className="text-gold-400">{inv.host_name}</span></p>
+              {/* Venue */}
+              {(inv.venue_place || inv.venue_city || inv.venue_country) && (
+                <div className="inline-flex items-start gap-1.5 text-xs text-cream-400/80 bg-black/20 rounded-lg px-3 py-2 mt-1">
+                  <span className="mt-0.5">📍</span>
+                  <div className="text-left">
+                    {inv.venue_place && <p className="font-medium text-cream-300">{inv.venue_place}</p>}
+                    {(inv.venue_street_number || inv.venue_street_name) && (
+                      <p>{[inv.venue_street_number, inv.venue_street_name].filter(Boolean).join(' ')}</p>
+                    )}
+                    {(inv.venue_city || inv.venue_state || inv.venue_country) && (
+                      <p>{[inv.venue_city, inv.venue_state, inv.venue_country].filter(Boolean).join(', ')}</p>
+                    )}
+                    {inv.venue_coordinates && (
+                      <a href={inv.venue_coordinates.startsWith('http') ? inv.venue_coordinates : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(inv.venue_coordinates)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="text-gold-400 hover:text-gold-300 underline underline-offset-2">
+                        Open in Maps →
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Dear invitee */}

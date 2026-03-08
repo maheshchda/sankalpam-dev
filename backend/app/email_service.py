@@ -51,12 +51,19 @@ def build_invitation_html(
     *,
     invitee_name: str,
     pooja_name: str,
-    scheduled_date: str,        # formatted: "Saturday, March 15, 2026"
+    scheduled_date: str,
     host_name: str,
     invite_message: str,
     rsvp_url: str,
     image_url: Optional[str] = None,
     frontend_url: str,
+    venue_place: Optional[str] = None,
+    venue_street_number: Optional[str] = None,
+    venue_street_name: Optional[str] = None,
+    venue_city: Optional[str] = None,
+    venue_state: Optional[str] = None,
+    venue_country: Optional[str] = None,
+    venue_coordinates: Optional[str] = None,
 ) -> str:
     image_block = ""
     if image_url:
