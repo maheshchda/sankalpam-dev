@@ -138,7 +138,7 @@ function isExcludedPooja(name: string, excludedPooja: 'ganesha' | 'lakshmi' | nu
   return false
 }
 
-export default function PoojaPage({ excludedPooja = null }: PoojaPageProps) {
+export function PoojaPage({ excludedPooja = null }: PoojaPageProps) {
   const { user, loading: authLoading, logout } = useAuth()
   const router = useRouter()
 
@@ -1124,3 +1124,7 @@ export default function PoojaPage({ excludedPooja = null }: PoojaPageProps) {
   )
 }
 
+// Next.js page: no custom props (satisfies App Router type check)
+export default function Page() {
+  return <PoojaPage />
+}
