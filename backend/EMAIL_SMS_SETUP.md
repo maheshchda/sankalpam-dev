@@ -47,33 +47,27 @@ EMAIL_FROM=noreply@yourdomain.com
 FRONTEND_URL=http://localhost:3000
 ```
 
-## SMS Configuration (Twilio)
+## SMS Configuration (Brevo)
 
-The application uses Twilio to send SMS verification codes.
+The application uses Brevo Transactional SMS (same account as email) to send verification OTPs.
 
-### Twilio Setup
+### Brevo SMS Setup
 
-1. **Sign up for Twilio**: https://www.twilio.com/try-twilio
-2. **Get your credentials** from the Twilio Console:
-   - Account SID
-   - Auth Token
-   - Phone Number (E.164 format: +1234567890)
-
-3. **Add to `.env` file**:
+1. **Use your existing Brevo account** (same as email)
+2. **Get your API key** from Brevo: Settings → SMTP & API → API Keys
+3. **Enable Transactional SMS** in your Brevo account (may require activation)
+4. **Add to `.env` file**:
 ```env
-TWILIO_ACCOUNT_SID=your-account-sid
-TWILIO_AUTH_TOKEN=your-auth-token
-TWILIO_FROM_NUMBER=+1234567890
+BREVO_API_KEY=your-brevo-api-key
+SMS_SENDER=Sankalpam
 ```
 
-4. **Install Twilio** (optional, only if using Twilio):
-```bash
-pip install twilio
-```
+- `BREVO_API_KEY`: Your Brevo API key (same key used for other Brevo API features)
+- `SMS_SENDER`: Sender name shown in SMS (max 11 alphanumeric chars, e.g. "Sankalpam")
 
 ## Development Mode
 
-If you don't configure SMTP or Twilio credentials, the application will run in **development mode**:
+If you don't configure SMTP or Brevo credentials, the application will run in **development mode**:
 - Email tokens and SMS OTPs will be printed to the console
 - No actual emails or SMS will be sent
 - You can copy the tokens/OTPs from the console to verify accounts
@@ -101,10 +95,10 @@ This is useful for local development and testing.
 - Check spam folder
 
 ### SMS not sending:
-- Verify Twilio credentials are correct
-- Ensure phone number is in E.164 format (+country code + number)
-- Check Twilio account has sufficient credits
-- Verify Twilio phone number is active
+- Verify BREVO_API_KEY is correct (from Brevo Settings → API Keys)
+- Ensure Transactional SMS is enabled in your Brevo account
+- Check Brevo SMS credits/balance
+- Phone number should include country code (e.g. 919876543210 for India)
 
 ### Development mode not working:
 - Ensure `SECRET_KEY` in `.env` is set to `"your-secret-key-change-in-production"`

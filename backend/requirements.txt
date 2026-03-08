@@ -16,7 +16,6 @@ redis==5.2.0
 qrcode[pil]==8.0
 gtts==2.5.1
 pyttsx3==2.90
-twilio>=8.0.0  # Optional: For SMS verification (install only if using Twilio)
 indic-transliteration>=2.0.0  # Latin/IAST to Telugu (and other Indic scripts) for names
 
 

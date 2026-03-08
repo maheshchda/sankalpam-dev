@@ -44,11 +44,9 @@ class Settings(BaseSettings):
     email_from: str = "noreply@sankalpam.com"
     frontend_url: str = "http://localhost:3000"  # Frontend URL for verification links
     
-    # SMS Service (Twilio)
-    twilio_account_sid: str = ""
-    twilio_auth_token: str = ""
-    twilio_from_number: str = ""  # Twilio phone number (E.164 format: +1234567890)
-    sms_from: str = ""  # Legacy - will be set to twilio_from_number if empty
+    # SMS Service (Brevo Transactional SMS - same account as email)
+    brevo_api_key: str = ""  # Brevo API key (Settings -> SMTP & API -> API Keys)
+    sms_sender: str = "Sankalpam"  # Sender name (max 11 alphanumeric chars)
     
     # File Storage
     upload_path: str = "uploads"
