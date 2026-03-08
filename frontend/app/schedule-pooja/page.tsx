@@ -93,17 +93,13 @@ export default function SchedulePoojaPage() {
   }, [user, authLoading, router])
 
   // ── Pooja & date ────────────────────────────────────────────────────────
-  const [poojaRegionCountry, setPoojaRegionCountry] = useState('IN')  // For filtering pooja list by state
   const [poojaRegionState, setPoojaRegionState] = useState('')
   const [poojas, setPoojas] = useState<Pooja[]>([])
   const [poojaId, setPoojaId] = useState('')
   const [customPooja, setCustomPooja] = useState('')
   const [scheduledDate, setScheduledDate] = useState('')
 
-  const poojaRegionStates = useMemo(
-    () => poojaRegionCountry ? State.getStatesOfCountry(poojaRegionCountry) : [],
-    [poojaRegionCountry]
-  )
+  const indianStates = useMemo(() => State.getStatesOfCountry('IN'), [])
 
   // ── Invite content ───────────────────────────────────────────────────────
   const [inviteMessage, setInviteMessage] = useState('')
@@ -151,14 +147,12 @@ export default function SchedulePoojaPage() {
     fetchSchedules()
   }, [user])
 
-  // ── Fetch poojas (filtered by state when selected) ───────────────────────
+  // ── Fetch poojas (filtered by Indian state when selected) ─────────────────
   useEffect(() => {
     if (!user) return
-    const stateParam = poojaRegionCountry && poojaRegionState
-      ? `?state=${poojaRegionCountry}-${poojaRegionState}`
-      : ''
+    const stateParam = poojaRegionState ? `?state=IN-${poojaRegionState}` : ''
     api.get(`/api/pooja/list${stateParam}`).then(r => setPoojas(r.data)).catch(() => {})
-  }, [user, poojaRegionCountry, poojaRegionState])
+  }, [user, poojaRegionState])
 
   const fetchSchedules = async () => {
     try { const r = await api.get('/api/schedule'); setSchedules(r.data) } catch { /* silent */ }
@@ -320,39 +314,22 @@ export default function SchedulePoojaPage() {
               <h2 className="font-cinzel text-lg font-bold text-sacred-800 mb-4">Pooja Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                {/* Region / State — filters pooja list by tradition */}
+                {/* Region / State — filters pooja list by Indian regional tradition */}
                 <div>
                   <label className="block text-sm font-semibold text-sacred-700 mb-1">
-                    Your Region / State
+                    Your preferred region / state in India
                   </label>
                   <p className="text-xs text-stone-400 mb-1">Poojas filtered by regional traditions (home-hosted with guests)</p>
-                  <div className="flex gap-2">
-                    <select
-                      className="sacred-input flex-1"
-                      value={poojaRegionCountry}
-                      onChange={e => { setPoojaRegionCountry(e.target.value); setPoojaRegionState(''); setPoojaId('') }}
-                    >
-                      <option value="IN">🇮🇳 India</option>
-                      <option value="US">🇺🇸 USA</option>
-                      <option value="GB">🇬🇧 UK</option>
-                      <option value="AE">🇦🇪 UAE</option>
-                      <option value="SG">🇸🇬 Singapore</option>
-                      <option value="MY">🇲🇾 Malaysia</option>
-                      <option value="AU">🇦🇺 Australia</option>
-                    </select>
-                    {poojaRegionCountry === 'IN' && (
-                      <select
-                        className="sacred-input flex-1"
-                        value={poojaRegionState}
-                        onChange={e => { setPoojaRegionState(e.target.value); setPoojaId('') }}
-                      >
-                        <option value="">All India</option>
-                        {poojaRegionStates.map(s => (
-                          <option key={s.isoCode} value={s.isoCode}>{s.name}</option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
+                  <select
+                    className="sacred-input w-full"
+                    value={poojaRegionState}
+                    onChange={e => { setPoojaRegionState(e.target.value); setPoojaId('') }}
+                  >
+                    <option value="">— All India (common poojas) —</option>
+                    {indianStates.map(s => (
+                      <option key={s.isoCode} value={s.isoCode}>{s.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Pooja dropdown */}
