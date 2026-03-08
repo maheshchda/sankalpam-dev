@@ -190,29 +190,39 @@ async def add_family_member(
             while db.query(FamilyMember).filter(FamilyMember.unique_id == fmid).first():
                 fmid = _gen_uid('FM')
 
+    # When adding by Unique ID: store only reference (no data copy). Display always fetches from source.
+    if has_link:
+        link_name, link_last, link_city, link_state, link_country = "—", None, "—", "—", "—"
+    else:
+        link_name = member_data.name
+        link_last = member_data.last_name or None
+        link_city = member_data.birth_city
+        link_state = member_data.birth_state
+        link_country = member_data.birth_country
+
     db_member = FamilyMember(
         unique_id=fmid,
         linked_user_id=(member_data.linked_user_id or "").strip().upper() or None,
         source_unique_id=(member_data.source_unique_id or "").strip().upper() or None,
         user_id=current_user.id,
-        name=member_data.name,
-        last_name=member_data.last_name or None,
+        name=link_name,
+        last_name=link_last,
         relation=member_data.relation,
         gender=member_data.gender,
-        date_of_birth=member_data.date_of_birth,
-        birth_time=member_data.birth_time,
-        birth_nakshatra=member_data.birth_nakshatra,
-        birth_rashi=member_data.birth_rashi,
-        birth_pada=getattr(member_data, "birth_pada", None),
-        birth_city=member_data.birth_city,
-        birth_state=member_data.birth_state,
-        birth_country=member_data.birth_country,
-        is_deceased=member_data.is_deceased,
-        date_of_death=member_data.date_of_death if member_data.is_deceased else None,
-        time_of_death=member_data.time_of_death if member_data.is_deceased else None,
-        death_city=member_data.death_city if member_data.is_deceased else None,
-        death_state=member_data.death_state if member_data.is_deceased else None,
-        death_country=member_data.death_country if member_data.is_deceased else None,
+        date_of_birth=None if has_link else member_data.date_of_birth,
+        birth_time=None if has_link else member_data.birth_time,
+        birth_nakshatra=None if has_link else member_data.birth_nakshatra,
+        birth_rashi=None if has_link else member_data.birth_rashi,
+        birth_pada=None if has_link else getattr(member_data, "birth_pada", None),
+        birth_city=link_city,
+        birth_state=link_state,
+        birth_country=link_country,
+        is_deceased=False if has_link else member_data.is_deceased,
+        date_of_death=None if has_link else (member_data.date_of_death if member_data.is_deceased else None),
+        time_of_death=None if has_link else (member_data.time_of_death if member_data.is_deceased else None),
+        death_city=None if has_link else (member_data.death_city if member_data.is_deceased else None),
+        death_state=None if has_link else (member_data.death_state if member_data.is_deceased else None),
+        death_country=None if has_link else (member_data.death_country if member_data.is_deceased else None),
     )
 
     db.add(db_member)
@@ -225,11 +235,135 @@ async def add_family_member(
     return db_member
 
 
-def _member_to_extended(m: FamilyMember, source: str = "own", linked_via: Optional[str] = None) -> ExtendedFamilyMemberResponse:
-    d = ExtendedFamilyMemberResponse.model_validate(m)
+def _resolve_linked_member(m: FamilyMember, db: Session) -> FamilyMember:
+    """
+    For members with linked_user_id or source_unique_id, return a copy with display data
+    resolved from the source (no data copy in DB — we fetch live when displaying).
+    """
+    if not m.linked_user_id and not m.source_unique_id:
+        return m
+    if m.linked_user_id:
+        u = db.query(User).filter(User.unique_id == m.linked_user_id).first()
+        if u:
+            # Build a display copy from User source (don't mutate m)
+            m2 = FamilyMember(
+                id=m.id, unique_id=m.unique_id, linked_user_id=m.linked_user_id,
+                source_unique_id=m.source_unique_id, user_id=m.user_id,
+                name=u.first_name, last_name=u.last_name or None,
+                relation=m.relation, gender=m.gender,
+                date_of_birth=u.birth_date, birth_time=u.birth_time,
+                birth_nakshatra=u.birth_nakshatra, birth_rashi=u.birth_rashi, birth_pada=u.birth_pada,
+                birth_city=u.birth_city or "", birth_state=u.birth_state or "", birth_country=u.birth_country or "",
+                is_deceased=False, date_of_death=None, time_of_death=None,
+                death_city=None, death_state=None, death_country=None,
+                death_tithi=None, death_paksha=None, death_nakshatra=None,
+                death_vara=None, death_yoga=None, death_karana=None,
+                created_at=m.created_at, updated_at=m.updated_at,
+            )
+            return m2
+    if m.source_unique_id:
+        src = db.query(FamilyMember).filter(FamilyMember.unique_id == m.source_unique_id).first()
+        if src:
+            src = _resolve_linked_member(src, db)  # resolve chain (e.g. FM -> User)
+            m2 = FamilyMember(
+                id=m.id, unique_id=m.unique_id, linked_user_id=m.linked_user_id,
+                source_unique_id=m.source_unique_id, user_id=m.user_id,
+                name=src.name, last_name=src.last_name,
+                relation=m.relation, gender=m.gender,
+                date_of_birth=src.date_of_birth, birth_time=src.birth_time,
+                birth_nakshatra=src.birth_nakshatra, birth_rashi=src.birth_rashi, birth_pada=src.birth_pada,
+                birth_city=src.birth_city or "", birth_state=src.birth_state or "", birth_country=src.birth_country or "",
+                is_deceased=src.is_deceased, date_of_death=src.date_of_death, time_of_death=src.time_of_death,
+                death_city=src.death_city, death_state=src.death_state, death_country=src.death_country,
+                death_tithi=src.death_tithi, death_paksha=src.death_paksha, death_nakshatra=src.death_nakshatra,
+                death_vara=src.death_vara, death_yoga=src.death_yoga, death_karana=src.death_karana,
+                created_at=m.created_at, updated_at=m.updated_at,
+            )
+            return m2
+    return m
+
+
+def _member_to_extended(m: FamilyMember, source: str = "own", linked_via: Optional[str] = None, db: Optional[Session] = None) -> ExtendedFamilyMemberResponse:
+    display = _resolve_linked_member(m, db) if db and (m.linked_user_id or m.source_unique_id) else m
+    d = ExtendedFamilyMemberResponse.model_validate(display)
     d.source = source
     d.linked_via = linked_via
     return d
+
+
+def _fetch_and_add_linked_family(
+    db: Session,
+    current_user_id: int,
+    current_user_unique_id: Optional[str],
+    target_user_id: int,
+    linked_via: str,
+    exclude_unique_id: Optional[str],
+    is_sibling: bool,
+    seen_ids: set[str],
+    owned_relations: set[str],
+    result: list,
+    fetched_user_ids: Optional[set[int]] = None,
+) -> None:
+    """
+    Fetch target_user's family and append to result. Recursively fetches nested links
+    (e.g. Brother's Wife's family) so that when your brother adds you, your wife's
+    family shows up in his tree.
+    """
+    fetched = fetched_user_ids or set()
+    if target_user_id in fetched:
+        return  # avoid cycles (e.g. Wife -> Husband -> Wife)
+    fetched.add(target_user_id)
+
+    others = db.query(FamilyMember).filter(FamilyMember.user_id == target_user_id).all()
+
+    for o in others:
+        if o.linked_user_id == current_user_unique_id:
+            continue  # skip — that's us
+        if exclude_unique_id and o.unique_id == exclude_unique_id:
+            continue  # skip — the person we're linking from (avoid duplicate)
+        uid = o.unique_id or f"fm-{o.id}"
+        if uid in seen_ids:
+            continue
+
+        if is_sibling:
+            if o.relation not in SIBLING_FAMILY_RELATIONS:
+                continue
+            mapped_rel = o.relation
+            if o.relation in UNIQUE_RELATIONS and o.relation in owned_relations:
+                continue
+        else:
+            mapped_rel = RELATION_TO_INLAW.get(o.relation, o.relation)
+
+        seen_ids.add(uid)
+        ext = _member_to_extended(o, source="linked", linked_via=linked_via, db=db_session)
+        ext.relation = mapped_rel
+        result.append(ext)
+
+        # Recursively fetch this person's family if they have a link (e.g. Brother's Wife → Wife's family)
+        if o.linked_user_id or o.source_unique_id:
+            nested_user_id: Optional[int] = None
+            if o.linked_user_id:
+                u = db.query(User).filter(User.unique_id == o.linked_user_id).first()
+                if u:
+                    nested_user_id = u.id
+            elif o.source_unique_id:
+                src_fm = db.query(FamilyMember).filter(FamilyMember.unique_id == o.source_unique_id).first()
+                if src_fm:
+                    nested_user_id = src_fm.user_id
+
+            if nested_user_id and nested_user_id != current_user_id:
+                _fetch_and_add_linked_family(
+                    db=db,
+                    current_user_id=current_user_id,
+                    current_user_unique_id=current_user_unique_id,
+                    target_user_id=nested_user_id,
+                    linked_via=o.relation,
+                    exclude_unique_id=None,
+                    is_sibling=False,  # nested (e.g. Wife's family) always uses in-law mapping
+                    seen_ids=seen_ids,
+                    owned_relations=owned_relations,
+                    result=result,
+                )
 
 
 @router.get("/extended-tree", response_model=List[ExtendedFamilyMemberResponse])
@@ -239,22 +373,23 @@ async def get_extended_family_tree(
 ):
     """
     Returns the full family tree including linked families.
-    When you add someone by Unique ID (PS-xxx or FM-xxx), their whole family is included
-    with relations mapped to in-law equivalents (e.g. Father → Father-in-law).
+    When you add someone by Unique ID (PS-xxx or FM-xxx), their whole family is included.
+    Recursively includes nested links: e.g. when your brother adds you, your wife's family
+    shows up in his tree (pulled from your data).
     """
     seen_ids: set[str] = set()
     result: list[ExtendedFamilyMemberResponse] = []
 
     # 1. Add own members
     own = db.query(FamilyMember).filter(FamilyMember.user_id == current_user.id).all()
-    owned_relations: set[str] = set()  # relations we already have (for unique-relation dedup)
+    owned_relations: set[str] = set()
     for m in own:
-        result.append(_member_to_extended(m, source="own"))
+        result.append(_member_to_extended(m, source="own", db=db))
         if m.unique_id:
             seen_ids.add(m.unique_id)
         owned_relations.add(m.relation)
 
-    # 2. For each member with linked_user_id or source_unique_id, fetch their family
+    # 2. For each member with linked_user_id or source_unique_id, fetch their family (recursively)
     for m in own:
         target_user_id: Optional[int] = None
         linked_via = m.relation
@@ -272,34 +407,21 @@ async def get_extended_family_tree(
             continue
 
         is_sibling = linked_via in ("Brother", "Sister")
-        others = db.query(FamilyMember).filter(FamilyMember.user_id == target_user_id).all()
+        exclude_uid = m.source_unique_id if m.source_unique_id else None
 
-        for o in others:
-            if o.linked_user_id == current_user.unique_id:
-                continue  # skip — that's us
-            if m.source_unique_id and o.unique_id == m.source_unique_id:
-                continue  # skip — that's the sibling we already added (when added by FM-xxx)
-            uid = o.unique_id or f"fm-{o.id}"
-            if uid in seen_ids:
-                continue
-
-            if is_sibling:
-                # Sibling's family: only parents, grandparents, great-grandparents, and siblings (shared)
-                if o.relation not in SIBLING_FAMILY_RELATIONS:
-                    continue
-                # Use relation as-is (Father stays Father, Brother stays Brother)
-                mapped_rel = o.relation
-                # Skip if we already have this unique relation (avoid duplicate Father, etc.)
-                if o.relation in UNIQUE_RELATIONS and o.relation in owned_relations:
-                    continue
-            else:
-                # Spouse/in-law: map to in-law equivalents
-                mapped_rel = RELATION_TO_INLAW.get(o.relation, o.relation)
-
-            seen_ids.add(uid)
-            ext = _member_to_extended(o, source="linked", linked_via=linked_via)
-            ext.relation = mapped_rel
-            result.append(ext)
+        _fetch_and_add_linked_family(
+            db=db,
+            current_user_id=current_user.id,
+            current_user_unique_id=current_user.unique_id,
+            target_user_id=target_user_id,
+            linked_via=linked_via,
+            exclude_unique_id=exclude_uid,
+            is_sibling=is_sibling,
+            seen_ids=seen_ids,
+            owned_relations=owned_relations,
+            result=result,
+            fetched_user_ids=set(),
+        )
 
     return result
 
