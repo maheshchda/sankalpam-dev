@@ -284,6 +284,7 @@ export default function FamilyPage() {
         last_name: '',
         unique_id: '',
         linked_user_id: '',
+        source_unique_id: '',
         relation: '',
         gender: 'male',
         date_of_birth: '',
