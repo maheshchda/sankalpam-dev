@@ -111,7 +111,7 @@ const RELATION_SORT: Record<string, number> = {
   "Spouse's Great Grand Daughter": 3,
 }
 
-const GEN_LABEL: Record<number, string> = {
+const GEN_LABEL: Record<string, string> = {
   '-4': 'Great-Great Grandparents',
   '-3': 'Great Grandparents',
   '-2': 'Grandparents',
@@ -276,7 +276,7 @@ export default function FamilyTree({ members, currentUser }: FamilyTreeProps) {
 
   // Determine which generations exist (always include tier 0 for the user)
   const existingGens = useMemo(() => {
-    const gens = new Set([...byGen.keys(), 0])
+    const gens = new Set([...Array.from(byGen.keys()), 0])
     return Array.from(gens).sort((a, b) => a - b)
   }, [byGen])
 
