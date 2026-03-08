@@ -559,7 +559,7 @@ export default function SankalpamPage() {
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
               <p className="text-sm text-yellow-800 font-semibold mb-2">⚠️ Please complete the following:</p>
               <ul className="text-xs text-yellow-700 space-y-1">
-                {!selectedTemplate && <li>• Select a template (Current: {selectedTemplate ? selectedTemplate.name : 'None'})</li>}
+                {!selectedTemplate && <li>• Select a template (Current: None)</li>}
                 {!location.city?.trim() && <li>• Enter City (Current: "{location.city}" - length: {location.city?.length || 0})</li>}
                 {!location.state?.trim() && <li>• Enter State (Current: "{location.state}" - length: {location.state?.length || 0})</li>}
                 {!location.country?.trim() && <li>• Enter Country (Current: "{location.country}" - length: {location.country?.length || 0})</li>}
