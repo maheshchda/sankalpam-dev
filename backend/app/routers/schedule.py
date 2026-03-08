@@ -46,6 +46,9 @@ async def create_schedule(
         sched_dt = datetime.strptime(scheduled_date, "%Y-%m-%d")
     except ValueError:
         raise HTTPException(status_code=422, detail="Invalid date format. Use YYYY-MM-DD.")
+    today = datetime.now().date()
+    if sched_dt.date() < today:
+        raise HTTPException(status_code=422, detail="Pooja date cannot be in the past.")
 
     # Resolve pooja name
     resolved_name = pooja_name

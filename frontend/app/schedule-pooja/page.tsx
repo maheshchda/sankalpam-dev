@@ -66,6 +66,11 @@ interface RsvpSummary {
 const EMPTY_INVITEE = (): Invitee => ({ name: '', last_name: '', email: '' })
 const INITIAL_ROWS = 5
 
+function todayLocal(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function venueOneLine(s: Schedule): string {
   const parts = [
     s.venue_place,
@@ -189,6 +194,7 @@ export default function SchedulePoojaPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!scheduledDate) { toast.error('Please select a date.'); return }
+    if (scheduledDate < todayLocal()) { toast.error('Pooja date cannot be in the past.'); return }
     if (!poojaId && !customPooja.trim()) { toast.error('Please select or enter a Pooja name.'); return }
 
     const validInvitees = invitees.filter(i => i.name.trim() && i.email.trim())
@@ -319,19 +325,34 @@ export default function SchedulePoojaPage() {
                   <label className="block text-sm font-semibold text-sacred-700 mb-1">
                     Your Region / State
                   </label>
-                  <p className="text-xs text-stone-400 mb-1">Poojas are filtered by regional traditions</p>
-                  <select
-                    className="sacred-input w-full"
-                    value={poojaRegionState}
-                    onChange={e => { setPoojaRegionState(e.target.value); setPoojaId('') }}
-                  >
-                    <option value="">— All India (common poojas) —</option>
-                    {poojaRegionStates.map(s => (
-                      <option key={s.isoCode} value={s.isoCode}>
-                        {Country.getCountryByCode(poojaRegionCountry)?.flag} {s.name}
-                      </option>
-                    ))}
-                  </select>
+                  <p className="text-xs text-stone-400 mb-1">Poojas filtered by regional traditions (home-hosted with guests)</p>
+                  <div className="flex gap-2">
+                    <select
+                      className="sacred-input flex-1"
+                      value={poojaRegionCountry}
+                      onChange={e => { setPoojaRegionCountry(e.target.value); setPoojaRegionState(''); setPoojaId('') }}
+                    >
+                      <option value="IN">🇮🇳 India</option>
+                      <option value="US">🇺🇸 USA</option>
+                      <option value="GB">🇬🇧 UK</option>
+                      <option value="AE">🇦🇪 UAE</option>
+                      <option value="SG">🇸🇬 Singapore</option>
+                      <option value="MY">🇲🇾 Malaysia</option>
+                      <option value="AU">🇦🇺 Australia</option>
+                    </select>
+                    {poojaRegionCountry === 'IN' && (
+                      <select
+                        className="sacred-input flex-1"
+                        value={poojaRegionState}
+                        onChange={e => { setPoojaRegionState(e.target.value); setPoojaId('') }}
+                      >
+                        <option value="">All India</option>
+                        {poojaRegionStates.map(s => (
+                          <option key={s.isoCode} value={s.isoCode}>{s.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 </div>
 
                 {/* Pooja dropdown */}
@@ -376,7 +397,7 @@ export default function SchedulePoojaPage() {
                   </label>
                   <input type="date" required className="sacred-input w-full"
                     value={scheduledDate}
-                    min={new Date().toISOString().split('T')[0]}
+                    min={todayLocal()}
                     onChange={e => setScheduledDate(e.target.value)} />
                 </div>
               </div>
