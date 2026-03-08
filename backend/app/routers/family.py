@@ -232,7 +232,8 @@ async def add_family_member(
     if db_member.is_deceased and db_member.date_of_death:
         background_tasks.add_task(_fill_death_panchang, db_member, db)
 
-    return db_member
+    resolved = _resolve_linked_member(db_member, db)
+    return resolved
 
 
 def _resolve_linked_member(m: FamilyMember, db: Session) -> FamilyMember:
@@ -363,6 +364,8 @@ def _fetch_and_add_linked_family(
                     seen_ids=seen_ids,
                     owned_relations=owned_relations,
                     result=result,
+                    fetched_user_ids=fetched,
+                    db_session=db_session,
                 )
 
 
@@ -421,6 +424,7 @@ async def get_extended_family_tree(
             owned_relations=owned_relations,
             result=result,
             fetched_user_ids=set(),
+            db_session=db,
         )
 
     return result
@@ -431,9 +435,10 @@ async def get_family_members(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List all family members for the current user."""
+    """List all family members for the current user. Linked members show data from source (no copy)."""
     members = db.query(FamilyMember).filter(FamilyMember.user_id == current_user.id).all()
-    return members
+    resolved = [_resolve_linked_member(m, db) for m in members]
+    return resolved
 
 
 @router.get("/members/{member_id}", response_model=FamilyMemberResponse)
@@ -455,7 +460,8 @@ async def get_family_member(
             detail="Family member not found",
         )
 
-    return member
+    resolved = _resolve_linked_member(member, db)
+    return resolved
 
 
 @router.put("/members/{member_id}", response_model=FamilyMemberResponse)
