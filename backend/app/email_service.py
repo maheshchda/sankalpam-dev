@@ -75,6 +75,47 @@ def build_invitation_html(
         </tr>
         """
 
+    # Build venue block
+    venue_lines = []
+    if venue_place:
+        venue_lines.append(f"<strong>{venue_place}</strong>")
+    street = " ".join(filter(None, [venue_street_number, venue_street_name]))
+    if street:
+        venue_lines.append(street)
+    city_line = ", ".join(filter(None, [venue_city, venue_state, venue_country]))
+    if city_line:
+        venue_lines.append(city_line)
+
+    venue_block = ""
+    if venue_lines:
+        maps_href = ""
+        if venue_coordinates:
+            if venue_coordinates.startswith("http"):
+                maps_href = venue_coordinates
+            else:
+                import urllib.parse
+                maps_href = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(venue_coordinates)}"
+        elif city_line:
+            import urllib.parse
+            maps_href = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(city_line)}"
+
+        maps_link = f' &nbsp;<a href="{maps_href}" style="color:#c9a227;font-size:11px;">Open in Maps →</a>' if maps_href else ""
+        venue_html = "<br/>".join(venue_lines)
+        venue_block = f"""
+        <tr>
+          <td style="padding:0 0 24px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="background:#fdf8f0;border:1px solid #e8d5a8;border-radius:8px;padding:14px 18px;">
+                  <p style="margin:0 0 4px 0;font-size:11px;color:#8a7060;letter-spacing:1px;text-transform:uppercase;">📍 Venue</p>
+                  <p style="margin:0;color:#4a3728;font-size:14px;line-height:1.6;">{venue_html}{maps_link}</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        """
+
     message_block = ""
     if invite_message:
         paragraphs = "".join(
@@ -141,6 +182,9 @@ def build_invitation_html(
 
                 <!-- Image -->
                 {image_block}
+
+                <!-- Venue -->
+                {venue_block}
 
                 <!-- Message -->
                 {message_block}
