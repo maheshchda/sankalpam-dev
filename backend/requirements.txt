@@ -16,6 +16,7 @@ redis==5.2.0
 qrcode[pil]==8.0
 gtts==2.5.1
 pyttsx3==2.90
+edge-tts>=7.0.0  # Free TTS, works with Python 3.13+ (Coqui TTS requires Python <3.12)
 indic-transliteration>=2.0.0  # Latin/IAST to Telugu (and other Indic scripts) for names
 
 

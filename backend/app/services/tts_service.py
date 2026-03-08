@@ -22,7 +22,7 @@ try:
     XTTS_AVAILABLE = True
 except ImportError:
     XTTS_AVAILABLE = False
-    print("XTTS-v2 TTS service not available (install with: pip install TTS)")
+    # Coqui TTS (XTTS) requires Python <3.12; Edge-TTS/gTTS used as fallback
 
 # Try to import Edge-TTS service (Free, works with Python 3.13+)
 try:

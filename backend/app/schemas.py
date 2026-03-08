@@ -121,16 +121,36 @@ class FamilyMemberBase(BaseModel):
 
 class FamilyMemberCreate(FamilyMemberBase):
     unique_id: Optional[str] = Field(None, max_length=15)   # caller-supplied; auto-generated if blank
-    linked_user_id: Optional[str] = Field(None, max_length=15)  # links to another User.unique_id
+    linked_user_id: Optional[str] = Field(None, max_length=15)  # links to another User.unique_id (PS-xxx)
+    source_unique_id: Optional[str] = Field(None, max_length=15)  # FM-xxx from another family when added by Unique ID
 
 class FamilyMemberResponse(FamilyMemberBase):
     id: int
     unique_id: Optional[str] = None
     linked_user_id: Optional[str] = None
+    source_unique_id: Optional[str] = None
     user_id: int
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class UniqueIdLookupResult(BaseModel):
+    """Unified lookup: User (PS-xxx) or FamilyMember (FM-xxx)."""
+    type: str  # "user" | "family_member"
+    unique_id: str
+    first_name: str
+    last_name: Optional[str] = None
+    birth_city: str = ""
+    birth_state: str = ""
+    birth_country: str = ""
+    birth_date: Optional[date] = None
+    birth_time: Optional[str] = None
+    birth_nakshatra: Optional[str] = None
+    birth_rashi: Optional[str] = None
+    birth_pada: Optional[str] = None
+    linked_user_id: Optional[str] = None   # set when type=user (same as unique_id for PS-xxx)
+    source_unique_id: Optional[str] = None  # set when type=family_member (the FM-xxx we looked up)
 
 # Pooja Schemas
 class PoojaBase(BaseModel):
@@ -337,4 +357,10 @@ class AttendingMemberInfo(BaseModel):
     unique_id: str
     display_name: str
     relation: Optional[str] = None
+
+
+class ExtendedFamilyMemberResponse(FamilyMemberResponse):
+    """Family member in extended tree — may be from linked family (in-law mapping applied)."""
+    source: str = "own"  # "own" | "linked"
+    linked_via: Optional[str] = None  # e.g. "Wife" — the relation through which we got this
 

@@ -92,6 +92,7 @@ interface FamilyMember {
   id: number
   unique_id?: string
   linked_user_id?: string
+  source_unique_id?: string
   name: string
   last_name?: string
   relation: string
@@ -149,6 +150,7 @@ export default function FamilyPage() {
     last_name: '',
     unique_id: '',
     linked_user_id: '',
+    source_unique_id: '',
     relation: '',
     gender: 'male',
     date_of_birth: '',
@@ -194,8 +196,12 @@ export default function FamilyPage() {
 
   const fetchMembers = async () => {
     try {
-      const response = await api.get('/api/family/members')
-      setMembers(response.data)
+      const [membersRes, extendedRes] = await Promise.all([
+        api.get('/api/family/members'),
+        api.get('/api/family/extended-tree'),
+      ])
+      setMembers(membersRes.data)
+      setExtendedMembers(extendedRes.data)
     } catch (error) {
       console.error('Error fetching family members:', error)
     } finally {
@@ -208,7 +214,7 @@ export default function FamilyPage() {
     if (!uid) return
     setLookupLoading(true)
     try {
-      const res = await api.get(`/api/users/lookup/${uid}`)
+      const res = await api.get(`/api/family/lookup/${uid}`)
       const u = res.data
       setFormData(prev => ({
         ...prev,
@@ -222,11 +228,13 @@ export default function FamilyPage() {
         birth_nakshatra: u.birth_nakshatra || '',
         birth_rashi: u.birth_rashi || '',
         birth_pada: u.birth_pada || '',
-        linked_user_id: u.unique_id,
+        linked_user_id: u.linked_user_id || '',
+        source_unique_id: u.source_unique_id || '',
       }))
-      toast.success(`Found: ${u.first_name} ${u.last_name}. Details pre-filled — set the Relation to continue.`)
+      const typeLabel = u.type === 'family_member' ? 'family member' : 'account'
+      toast.success(`Found ${typeLabel}: ${u.first_name} ${u.last_name}. Their whole family will be added to your tree.`)
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'No account found with that Unique ID.')
+      toast.error(err.response?.data?.detail || 'No account or family member found with that Unique ID.')
     } finally {
       setLookupLoading(false)
     }
@@ -236,8 +244,12 @@ export default function FamilyPage() {
     e.preventDefault()
     try {
       // Prepare data - convert empty strings to null for optional fields
+      const hasLink = !!(formData.linked_user_id || formData.source_unique_id)
       const submitData = {
         ...formData,
+        unique_id: hasLink ? '' : formData.unique_id,
+        linked_user_id: formData.linked_user_id || undefined,
+        source_unique_id: formData.source_unique_id || undefined,
         date_of_birth: formData.date_of_birth || null,
         birth_time: formData.birth_time || null,
         birth_nakshatra: formData.birth_nakshatra || null,
@@ -336,6 +348,7 @@ export default function FamilyPage() {
       last_name: member.last_name || '',
       unique_id: member.unique_id || '',
       linked_user_id: member.linked_user_id || '',
+      source_unique_id: (member as any).source_unique_id || '',
       relation: member.relation,
       gender: member.gender,
       date_of_birth: member.date_of_birth ? member.date_of_birth.slice(0, 10) : '',
@@ -386,7 +399,7 @@ export default function FamilyPage() {
         {/* Family Tree */}
         {user && (
           <FamilyTree
-            members={members}
+            members={extendedMembers}
             currentUser={{
               first_name: user.first_name,
               last_name: (user as any).last_name,
@@ -433,7 +446,7 @@ export default function FamilyPage() {
                   /* Add mode: editable ID + lookup button */
                   <>
                     <p className="text-xs text-stone-500">
-                      If this member has a Pooja Sankalpam account, enter their <span className="font-mono">PS-XXXXXXXX</span> ID to auto-fill their details.
+                      Enter <span className="font-mono">PS-XXXXXXXX</span> (account) or <span className="font-mono">FM-XXXXXXXX</span> (family member) to auto-fill and link their whole family into your tree.
                       Otherwise leave blank — a new ID will be created automatically.
                     </p>
                     <div className="flex gap-2">
@@ -454,7 +467,7 @@ export default function FamilyPage() {
                     {formData.linked_user_id && (
                       <p className="text-xs text-green-700 font-medium">
                         ✓ Linked to account <span className="font-mono">{formData.linked_user_id}</span>
-                        <button type="button" onClick={() => setFormData({ ...formData, unique_id: '', linked_user_id: '' })}
+                        <button type="button" onClick={() => setFormData({ ...formData, unique_id: '', linked_user_id: '', source_unique_id: '' })}
                           className="ml-2 text-red-500 underline">Clear</button>
                       </p>
                     )}

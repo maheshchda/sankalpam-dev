@@ -17,7 +17,7 @@ try:
     XTTS_AVAILABLE = True
 except ImportError:
     XTTS_AVAILABLE = False
-    print("TTS library not available. Install with: pip install TTS")
+    # Coqui TTS requires Python <3.12; Edge-TTS or gTTS will be used as fallback
 
 
 async def text_to_speech_xtts(

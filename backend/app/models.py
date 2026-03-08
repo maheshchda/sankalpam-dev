@@ -120,6 +120,7 @@ class FamilyMember(Base):
     id = Column(Integer, primary_key=True, index=True)
     unique_id = Column(String(15), unique=True, index=True, nullable=True)
     linked_user_id = Column(String(15), index=True, nullable=True)
+    source_unique_id = Column(String(15), index=True, nullable=True)  # FM-xxx from another family when added by Unique ID
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     
     name = Column(String(100), nullable=False)
