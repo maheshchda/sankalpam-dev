@@ -1,6 +1,6 @@
 'use client'
 
-import PoojaPage from '../page'
+import { PoojaPage } from '../page'
 
 export default function GaneshaPoojaPage() {
   return <PoojaPage excludedPooja="lakshmi" />
