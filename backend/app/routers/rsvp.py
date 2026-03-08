@@ -99,6 +99,13 @@ async def send_invitations(
             rsvp_url=rsvp_url,
             image_url=image_url,
             frontend_url=settings.frontend_url,
+            venue_place=schedule.venue_place,
+            venue_street_number=schedule.venue_street_number,
+            venue_street_name=schedule.venue_street_name,
+            venue_city=schedule.venue_city,
+            venue_state=schedule.venue_state,
+            venue_country=schedule.venue_country,
+            venue_coordinates=schedule.venue_coordinates,
         )
         text = build_invitation_text(
             invitee_name=invitee_name,
