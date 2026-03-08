@@ -228,9 +228,10 @@ function GenRow({
         {isUserGen ? (
           <>
             {/* Siblings (left side) */}
-            {siblings.map(n => (
-              <TreeNode key={n.key} {...n} />
-            ))}
+            {siblings.map(n => {
+              const { key, ...props } = n
+              return <TreeNode key={key} {...props} />
+            })}
 
             {/* YOU card */}
             <TreeNode
@@ -244,10 +245,10 @@ function GenRow({
             />
 
             {/* Wife (right side) */}
-            {wife && <TreeNode key={wife.key} {...wife} />}
+            {wife && (() => { const { key, ...props } = wife; return <TreeNode key={key} {...props} /> })()}
           </>
         ) : (
-          nodes.map(n => <TreeNode key={n.key} {...n} />)
+          nodes.map(n => { const { key, ...props } = n; return <TreeNode key={key} {...props} /> })
         )}
       </div>
     </div>
@@ -267,9 +268,9 @@ export default function FamilyTree({ members, currentUser }: FamilyTreeProps) {
       map.get(gen)!.push(m)
     }
     // Sort each generation by RELATION_SORT
-    for (const [, list] of map) {
+    Array.from(map.values()).forEach((list) => {
       list.sort((a, b) => (RELATION_SORT[a.relation] ?? 50) - (RELATION_SORT[b.relation] ?? 50))
-    }
+    })
     return map
   }, [members])
 
