@@ -41,6 +41,16 @@ UNIQUE_RELATIONS = {
     "Great Grand Maternal Father", "Great Grand Maternal Mother",
 }
 
+# When adding a Brother/Sister by Unique ID, we auto-include shared ancestors and siblings (no in-law mapping)
+SIBLING_FAMILY_RELATIONS = {
+    "Father", "Mother",
+    "Brother", "Sister",
+    "Grand Paternal Father", "Grand Paternal Mother",
+    "Grand Maternal Father", "Grand Maternal Mother",
+    "Great Grand Paternal Father", "Great Grand Paternal Mother",
+    "Great Grand Maternal Father", "Great Grand Maternal Mother",
+}
+
 
 async def _fill_death_panchang(member: FamilyMember, db: Session) -> None:
     """
@@ -237,10 +247,12 @@ async def get_extended_family_tree(
 
     # 1. Add own members
     own = db.query(FamilyMember).filter(FamilyMember.user_id == current_user.id).all()
+    owned_relations: set[str] = set()  # relations we already have (for unique-relation dedup)
     for m in own:
         result.append(_member_to_extended(m, source="own"))
         if m.unique_id:
             seen_ids.add(m.unique_id)
+        owned_relations.add(m.relation)
 
     # 2. For each member with linked_user_id or source_unique_id, fetch their family
     for m in own:
@@ -259,17 +271,32 @@ async def get_extended_family_tree(
         if not target_user_id or target_user_id == current_user.id:
             continue
 
-        # Fetch that user's family (exclude member that links back to us — we're already in our tree)
+        is_sibling = linked_via in ("Brother", "Sister")
         others = db.query(FamilyMember).filter(FamilyMember.user_id == target_user_id).all()
 
         for o in others:
             if o.linked_user_id == current_user.unique_id:
                 continue  # skip — that's us
+            if m.source_unique_id and o.unique_id == m.source_unique_id:
+                continue  # skip — that's the sibling we already added (when added by FM-xxx)
             uid = o.unique_id or f"fm-{o.id}"
             if uid in seen_ids:
                 continue
+
+            if is_sibling:
+                # Sibling's family: only parents, grandparents, great-grandparents, and siblings (shared)
+                if o.relation not in SIBLING_FAMILY_RELATIONS:
+                    continue
+                # Use relation as-is (Father stays Father, Brother stays Brother)
+                mapped_rel = o.relation
+                # Skip if we already have this unique relation (avoid duplicate Father, etc.)
+                if o.relation in UNIQUE_RELATIONS and o.relation in owned_relations:
+                    continue
+            else:
+                # Spouse/in-law: map to in-law equivalents
+                mapped_rel = RELATION_TO_INLAW.get(o.relation, o.relation)
+
             seen_ids.add(uid)
-            mapped_rel = RELATION_TO_INLAW.get(o.relation, o.relation)
             ext = _member_to_extended(o, source="linked", linked_via=linked_via)
             ext.relation = mapped_rel
             result.append(ext)

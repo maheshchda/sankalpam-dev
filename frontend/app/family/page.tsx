@@ -436,9 +436,9 @@ export default function FamilyPage() {
                       <button type="button" onClick={() => { navigator.clipboard.writeText(formData.unique_id); toast.info('Copied!') }}
                         className="sacred-btn text-sm px-3 py-1.5 shrink-0">Copy</button>
                     )}
-                    {formData.linked_user_id && (
+                    {(formData.linked_user_id || formData.source_unique_id) && (
                       <span className="text-xs font-mono bg-green-100 border border-green-300 text-green-700 px-2 py-1 rounded shrink-0">
-                        🔗 {formData.linked_user_id}
+                        🔗 {formData.linked_user_id || formData.source_unique_id}
                       </span>
                     )}
                   </div>
@@ -840,9 +840,9 @@ export default function FamilyPage() {
                           {member.unique_id}
                         </span>
                       )}
-                      {member.linked_user_id && (
-                        <span className="font-mono text-xs bg-green-100 border border-green-300 text-green-700 px-2 py-0.5 rounded" title="Linked to a registered account">
-                          🔗 {member.linked_user_id}
+                      {(member.linked_user_id || member.source_unique_id) && (
+                        <span className="font-mono text-xs bg-green-100 border border-green-300 text-green-700 px-2 py-0.5 rounded" title="Linked — their family appears in your tree">
+                          🔗 {member.linked_user_id || member.source_unique_id}
                         </span>
                       )}
                     </div>
