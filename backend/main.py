@@ -20,24 +20,41 @@ async def lifespan(app: FastAPI):
     # Seed default poojas (Ganesh Pooja, Lakshmi Pooja) if missing
     db = SessionLocal()
     try:
-        ganesha = db.query(Pooja).filter(Pooja.name == "Ganesh Pooja").first()
-        if not ganesha:
-            db.add(Pooja(
-                name="Ganesh Pooja",
-                description="Ganesha Pooja for auspicious beginnings and removal of obstacles.",
-                duration_minutes=30,
-                is_active=True,
-                created_by=None,
-            ))
-        lakshmi = db.query(Pooja).filter(Pooja.name == "Lakshmi Pooja").first()
-        if not lakshmi:
-            db.add(Pooja(
-                name="Lakshmi Pooja",
-                description="Sri Mahalakshmi Pooja for prosperity, wealth and abundance.",
-                duration_minutes=30,
-                is_active=True,
-                created_by=None,
-            ))
+        DEFAULT_POOJAS = [
+            ("Ganesh Pooja",           "Ganesha Pooja for auspicious beginnings and removal of obstacles.", 30),
+            ("Lakshmi Pooja",          "Sri Mahalakshmi Pooja for prosperity, wealth, and abundance.", 30),
+            ("Satyanarayan Pooja",     "Sri Satyanarayan Katha and Pooja for blessings and fulfilment of wishes.", 120),
+            ("Rudrabhishek",           "Abhishek of Lord Shiva with sacred offerings for peace and prosperity.", 90),
+            ("Navgraha Pooja",         "Pooja for the nine planetary deities to mitigate doshas and seek blessings.", 60),
+            ("Durga Pooja",            "Worship of Goddess Durga for strength, protection, and victory.", 60),
+            ("Saraswati Pooja",        "Worship of Goddess Saraswati for knowledge, wisdom, and learning.", 45),
+            ("Hanuman Pooja",          "Hanuman Pooja for courage, devotion, and protection from evil.", 45),
+            ("Kali Pooja",             "Worship of Goddess Kali for liberation and protection.", 60),
+            ("Vastu Pooja",            "Vastu Shanti Pooja to purify a new home or building.", 90),
+            ("Gruhapravesam",          "Sacred house-warming ceremony with Vedic rituals.", 120),
+            ("Ayush Homam",            "Homam for longevity, good health, and a blessed life.", 90),
+            ("Mrityunjaya Homam",      "Maha Mrityunjaya Homam for good health and freedom from disease.", 120),
+            ("Sudarshana Homam",       "Sudarshana Homam for protection and removal of negative energies.", 90),
+            ("Navagraha Homam",        "Fire ritual for all nine planetary deities to balance cosmic energies.", 120),
+            ("Ganapathi Homam",        "Fire ritual for Lord Ganesha to remove obstacles and bestow success.", 90),
+            ("Lakshmi Kubera Pooja",   "Combined worship of Goddess Lakshmi and Lord Kubera for wealth.", 60),
+            ("Satyanarayana Vratam",   "Monthly Satyanarayan Vrat for family well-being and divine grace.", 120),
+            ("Seemantham",             "Baby shower ceremony with Vedic blessings for mother and child.", 90),
+            ("Naamkaran (Naming)",     "Sacred naming ceremony for a newborn child.", 60),
+            ("Annaprasana",            "First rice-feeding ceremony for an infant.", 60),
+            ("Upanayanam",             "Sacred thread ceremony marking a boy's entry into studentship.", 180),
+            ("Vivaha (Wedding)",       "Traditional Vedic wedding ceremony.", 240),
+            ("Sathabhishekam",         "80th birthday celebration ritual for longevity and blessings.", 120),
+            ("Pitru Tarpan",           "Ancestral offerings and prayers on auspicious occasions.", 60),
+            ("Ekadashi Pooja",         "Special prayers on Ekadashi for spiritual merit.", 45),
+            ("Pradosh Pooja",          "Evening prayers to Lord Shiva on Pradosh days.", 45),
+            ("Navaratri Pooja",        "Nine-night festival worship of Goddess Durga.", 60),
+            ("Diwali Lakshmi Pooja",   "Lakshmi Pooja on the auspicious night of Diwali.", 60),
+            ("Sankranti Pooja",        "Makar Sankranti/Ugadi rituals for new beginnings.", 60),
+        ]
+        for (pname, pdesc, pdur) in DEFAULT_POOJAS:
+            if not db.query(Pooja).filter(Pooja.name == pname).first():
+                db.add(Pooja(name=pname, description=pdesc, duration_minutes=pdur, is_active=True, created_by=None))
         db.commit()
 
         # ── Seed default admin roles ──────────────────────────────────────────

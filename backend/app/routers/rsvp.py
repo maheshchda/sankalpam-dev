@@ -158,6 +158,13 @@ async def view_invitation(token: str, db: Session = Depends(get_db)):
         rsvp_status=inv.rsvp_status or "pending",
         rsvp_notes=inv.rsvp_notes,
         attending_members=inv.attending_members,
+        venue_place=schedule.venue_place,
+        venue_street_number=schedule.venue_street_number,
+        venue_street_name=schedule.venue_street_name,
+        venue_city=schedule.venue_city,
+        venue_state=schedule.venue_state,
+        venue_country=schedule.venue_country,
+        venue_coordinates=schedule.venue_coordinates,
     )
 
 
