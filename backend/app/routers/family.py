@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.database import get_db
-from app.models import User, FamilyMember
+from app.models import User, FamilyMember, _gen_uid
 from app.schemas import FamilyMemberCreate, FamilyMemberResponse
 from app.dependencies import get_current_user
 from app.services.divineapi_service import fetch_death_panchang
@@ -79,9 +79,23 @@ async def add_family_member(
                 detail=f"You already have a '{member_data.relation}' in your family. Only one is allowed.",
             )
 
+    # Resolve unique_id: use caller-supplied value, or auto-generate FM-XXXXXXXX
+    supplied_uid = (member_data.unique_id or "").strip().upper() or None
+    if supplied_uid:
+        if db.query(FamilyMember).filter(FamilyMember.unique_id == supplied_uid).first():
+            raise HTTPException(status_code=400, detail=f"Unique ID '{supplied_uid}' is already in use.")
+        fmid = supplied_uid
+    else:
+        fmid = _gen_uid('FM')
+        while db.query(FamilyMember).filter(FamilyMember.unique_id == fmid).first():
+            fmid = _gen_uid('FM')
+
     db_member = FamilyMember(
+        unique_id=fmid,
+        linked_user_id=(member_data.linked_user_id or "").strip().upper() or None,
         user_id=current_user.id,
         name=member_data.name,
+        last_name=member_data.last_name or None,
         relation=member_data.relation,
         gender=member_data.gender,
         date_of_birth=member_data.date_of_birth,
@@ -168,6 +182,8 @@ async def update_family_member(
         )
 
     member.name = member_data.name
+    member.last_name = member_data.last_name or None
+    member.linked_user_id = (member_data.linked_user_id or "").strip().upper() or None
     member.relation = member_data.relation
     member.gender = member_data.gender
     member.date_of_birth = member_data.date_of_birth

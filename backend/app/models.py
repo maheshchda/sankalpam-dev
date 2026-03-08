@@ -3,7 +3,13 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
 import enum
+import secrets
 from app.database import Base
+
+_UID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'  # 32 unambiguous chars
+
+def _gen_uid(prefix: str) -> str:
+    return prefix + '-' + ''.join(secrets.choice(_UID_CHARS) for _ in range(8))
 
 class Language(str, enum.Enum):
     """Language enum: value is display name; use .code for ISO 639-1 (e.g. Telugu -> 'te')."""
@@ -64,6 +70,7 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
+    unique_id = Column(String(15), unique=True, index=True, nullable=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
     email = Column(String(100), unique=True, index=True, nullable=False)
     phone = Column(String(20), unique=True, index=True, nullable=False)
@@ -111,9 +118,12 @@ class FamilyMember(Base):
     __tablename__ = "family_members"
     
     id = Column(Integer, primary_key=True, index=True)
+    unique_id = Column(String(15), unique=True, index=True, nullable=True)
+    linked_user_id = Column(String(15), index=True, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     
     name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=True)
     relation = Column(String(50), nullable=False)  # father, mother, spouse, child, etc.
     gender = Column(SQLEnum(Gender), nullable=False)
     date_of_birth = Column(DateTime, nullable=True)
@@ -269,3 +279,42 @@ class SankalpamTemplate(Base):
     
     # Relationships
     creator = relationship("User", foreign_keys=[created_by])
+
+
+class PoojaSchedule(Base):
+    __tablename__ = "pooja_schedules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    pooja_id = Column(Integer, ForeignKey("poojas.id"), nullable=True)
+    pooja_name = Column(String(200), nullable=True)        # snapshot / free-text fallback
+    scheduled_date = Column(DateTime, nullable=False)
+    invite_message = Column(Text, nullable=True)
+    image_path = Column(String(500), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    pooja = relationship("Pooja")
+    invitees = relationship("PoojaScheduleInvitee", back_populates="schedule", cascade="all, delete-orphan")
+
+
+class PoojaScheduleInvitee(Base):
+    __tablename__ = "pooja_schedule_invitees"
+
+    id = Column(Integer, primary_key=True, index=True)
+    schedule_id = Column(Integer, ForeignKey("pooja_schedules.id"), nullable=False)
+    name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=True)
+    email = Column(String(200), nullable=False)
+
+    # RSVP fields
+    rsvp_token = Column(String(64), unique=True, index=True, nullable=True)
+    rsvp_status = Column(String(20), default="pending")   # pending / attending / not_attending / maybe
+    rsvp_unique_id = Column(String(15), nullable=True)     # Sankalpam Unique ID of the responder
+    attending_members = Column(Text, nullable=True)        # JSON list of unique_ids attending
+    rsvp_notes = Column(Text, nullable=True)
+    rsvp_updated_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    schedule = relationship("PoojaSchedule", back_populates="invitees")

@@ -6,7 +6,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
 from app.database import engine, Base, SessionLocal
-from app.routers import auth, users, family, pooja, sankalpam, admin, templates, pooja_calendar, panchang
+from app.routers import auth, users, family, pooja, sankalpam, admin, templates, pooja_calendar, panchang, schedule, rsvp
 from app.config import settings
 from app.models import Pooja, AdminRole, UserAdminRole, User
 import json
@@ -164,12 +164,18 @@ app.include_router(pooja_calendar.router, prefix="/api/pooja-calendar", tags=["P
 app.include_router(sankalpam.router, prefix="/api/sankalpam", tags=["Sankalpam"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(templates.router, prefix="/api/templates", tags=["Templates"])
-app.include_router(panchang.router,  prefix="/api/panchang",  tags=["Panchang"])
+app.include_router(panchang.router,   prefix="/api/panchang",   tags=["Panchang"])
+app.include_router(schedule.router,   prefix="/api/schedule",   tags=["Schedule"])
+app.include_router(rsvp.router,       prefix="/api/rsvp",       tags=["RSVP"])
 
-# Mount static files for audio
+# Mount static files for audio and schedule images
 audio_path = Path(settings.audio_storage_path)
 audio_path.mkdir(parents=True, exist_ok=True)
 app.mount("/audio", StaticFiles(directory=str(audio_path)), name="audio")
+
+schedule_img_path = Path("uploads/schedule_images")
+schedule_img_path.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads/schedule_images", StaticFiles(directory=str(schedule_img_path)), name="schedule_images")
 
 @app.get("/")
 async def root():

@@ -62,6 +62,7 @@ class UserUpdate(BaseModel):
 
 class UserResponse(UserBase):
     id: int
+    unique_id: Optional[str] = None
     username: str
     email_verified: bool
     phone_verified: bool
@@ -71,9 +72,29 @@ class UserResponse(UserBase):
     
     model_config = {"from_attributes": True}
 
+
+class UserPublicLookup(BaseModel):
+    """Minimal public info returned when looking up a user by unique_id."""
+    unique_id: str
+    first_name: str
+    last_name: str
+    gotram: str
+    birth_city: str
+    birth_state: str
+    birth_country: str
+    birth_date: Optional[date] = None
+    birth_time: Optional[str] = None
+    birth_nakshatra: Optional[str] = None
+    birth_rashi: Optional[str] = None
+    birth_pada: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
 # Family Member Schemas
 class FamilyMemberBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
+    last_name: Optional[str] = Field(None, max_length=100)
     relation: str = Field(..., min_length=1, max_length=50)
     gender: Gender
     date_of_birth: Optional[date] = None
@@ -99,10 +120,13 @@ class FamilyMemberBase(BaseModel):
     death_karana: Optional[str] = Field(None, max_length=100)
 
 class FamilyMemberCreate(FamilyMemberBase):
-    pass
+    unique_id: Optional[str] = Field(None, max_length=15)   # caller-supplied; auto-generated if blank
+    linked_user_id: Optional[str] = Field(None, max_length=15)  # links to another User.unique_id
 
 class FamilyMemberResponse(FamilyMemberBase):
     id: int
+    unique_id: Optional[str] = None
+    linked_user_id: Optional[str] = None
     user_id: int
     created_at: datetime
 
@@ -222,4 +246,71 @@ class TemplateGenerateResponse(BaseModel):
     audio_url: str
     variables_used: Dict[str, str]
     session_id: Optional[int] = None
+
+
+# ── Pooja Schedule Schemas ────────────────────────────────────────────────────
+
+class InviteeCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    last_name: Optional[str] = Field(None, max_length=100)
+    email: str = Field(..., min_length=3, max_length=200)
+
+class InviteeResponse(InviteeCreate):
+    id: int
+    rsvp_token: Optional[str] = None
+    rsvp_status: str = "pending"
+    rsvp_unique_id: Optional[str] = None
+    attending_members: Optional[str] = None   # JSON string
+    rsvp_notes: Optional[str] = None
+    rsvp_updated_at: Optional[datetime] = None
+    model_config = {"from_attributes": True}
+
+class PoojaScheduleCreate(BaseModel):
+    pooja_id: Optional[int] = None
+    pooja_name: Optional[str] = Field(None, max_length=200)
+    scheduled_date: date
+    invite_message: Optional[str] = None
+    invitees: List[InviteeCreate] = []
+
+class PoojaScheduleResponse(BaseModel):
+    id: int
+    user_id: int
+    pooja_id: Optional[int] = None
+    pooja_name: Optional[str] = None
+    scheduled_date: date
+    invite_message: Optional[str] = None
+    image_path: Optional[str] = None
+    invitees: List[InviteeResponse] = []
+    created_at: datetime
+    model_config = {"from_attributes": True}
+
+# ── RSVP public schemas ───────────────────────────────────────────────────────
+
+class RsvpInvitationView(BaseModel):
+    """Public view of an invitation — safe to return without auth."""
+    schedule_id: int
+    invitee_id: int
+    invitee_name: str
+    invitee_last_name: Optional[str] = None
+    pooja_name: str
+    scheduled_date: date
+    invite_message: Optional[str] = None
+    image_path: Optional[str] = None
+    host_name: str
+    rsvp_status: str
+    rsvp_notes: Optional[str] = None
+    attending_members: Optional[str] = None  # JSON
+    model_config = {"from_attributes": True}
+
+class RsvpSubmit(BaseModel):
+    status: str = Field(..., pattern="^(attending|not_attending|maybe)$")
+    notes: Optional[str] = Field(None, max_length=500)
+    unique_id: Optional[str] = Field(None, max_length=15)
+    attending_member_ids: Optional[List[str]] = None   # list of unique_ids
+
+class AttendingMemberInfo(BaseModel):
+    """Family member info returned for a given Unique ID during RSVP."""
+    unique_id: str
+    display_name: str
+    relation: Optional[str] = None
 

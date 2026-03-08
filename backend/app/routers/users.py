@@ -2,11 +2,26 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User
-from app.schemas import UserResponse, UserUpdate
+from app.schemas import UserResponse, UserUpdate, UserPublicLookup
 from app.dependencies import get_current_user
 from app.auth import verify_password, get_password_hash
 
 router = APIRouter()
+
+
+@router.get("/lookup/{unique_id}", response_model=UserPublicLookup)
+async def lookup_user_by_unique_id(
+    unique_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Look up a user by their Unique ID to pre-fill the family member form."""
+    user = db.query(User).filter(User.unique_id == unique_id.upper()).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found with that Unique ID.")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot link yourself as a family member.")
+    return user
 
 
 @router.get("/me", response_model=UserResponse)

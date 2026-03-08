@@ -108,7 +108,10 @@ export default function DashboardPage() {
               <Link href="/family" className="block px-4 py-2.5 bg-cream-200 rounded-md hover:bg-cream-300 text-sacred-700 font-medium transition-colors">
                 Add Family Member
               </Link>
-              <Link href="/pooja-calendar" className="block px-4 py-2.5 bg-gold-500/20 rounded-md hover:bg-gold-500/30 text-sacred-700 font-medium transition-colors border border-gold-500/30">
+              <Link href="/schedule-pooja" className="block px-4 py-2.5 bg-gold-500/20 rounded-md hover:bg-gold-500/30 text-sacred-700 font-medium transition-colors border border-gold-500/30">
+                🪔 Schedule a Pooja
+              </Link>
+              <Link href="/pooja-calendar" className="block px-4 py-2.5 bg-sacred-700/10 rounded-md hover:bg-sacred-700/20 text-sacred-700 font-medium transition-colors">
                 Pooja Calendar
               </Link>
               <Link href="/sankalpam" className="block px-4 py-2.5 bg-sacred-700/10 rounded-md hover:bg-sacred-700/20 text-sacred-700 font-medium transition-colors">

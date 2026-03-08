@@ -8,6 +8,7 @@ import { toast } from 'react-toastify'
 import Link from 'next/link'
 import Select from 'react-select'
 import { Country, State, City } from 'country-state-city'
+import FamilyTree from '@/components/FamilyTree'
 
 const NAKSHATRAS = [
   'Ashwini',
@@ -89,7 +90,10 @@ const RELATIONS = [
 
 interface FamilyMember {
   id: number
+  unique_id?: string
+  linked_user_id?: string
   name: string
+  last_name?: string
   relation: string
   gender: string
   date_of_birth: string | null
@@ -119,6 +123,7 @@ export default function FamilyPage() {
   const router = useRouter()
   const [members, setMembers] = useState<FamilyMember[]>([])
   const [loading, setLoading] = useState(true)
+  const [lookupLoading, setLookupLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
 
@@ -141,6 +146,9 @@ export default function FamilyPage() {
 
   const [formData, setFormData] = useState({
     name: '',
+    last_name: '',
+    unique_id: '',
+    linked_user_id: '',
     relation: '',
     gender: 'male',
     date_of_birth: '',
@@ -195,6 +203,35 @@ export default function FamilyPage() {
     }
   }
 
+  const handleLookup = async () => {
+    const uid = (formData.unique_id || '').trim().toUpperCase()
+    if (!uid) return
+    setLookupLoading(true)
+    try {
+      const res = await api.get(`/api/users/lookup/${uid}`)
+      const u = res.data
+      setFormData(prev => ({
+        ...prev,
+        name: u.first_name,
+        last_name: u.last_name || '',
+        birth_city: u.birth_city || '',
+        birth_state: u.birth_state || '',
+        birth_country: u.birth_country || '',
+        date_of_birth: u.birth_date ? u.birth_date.slice(0, 10) : '',
+        birth_time: u.birth_time || '',
+        birth_nakshatra: u.birth_nakshatra || '',
+        birth_rashi: u.birth_rashi || '',
+        birth_pada: u.birth_pada || '',
+        linked_user_id: u.unique_id,
+      }))
+      toast.success(`Found: ${u.first_name} ${u.last_name}. Details pre-filled — set the Relation to continue.`)
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'No account found with that Unique ID.')
+    } finally {
+      setLookupLoading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -232,6 +269,9 @@ export default function FamilyPage() {
       setDeathStateCode('')
       setFormData({
         name: '',
+        last_name: '',
+        unique_id: '',
+        linked_user_id: '',
         relation: '',
         gender: 'male',
         date_of_birth: '',
@@ -293,6 +333,9 @@ export default function FamilyPage() {
 
     setFormData({
       name: member.name,
+      last_name: member.last_name || '',
+      unique_id: member.unique_id || '',
+      linked_user_id: member.linked_user_id || '',
       relation: member.relation,
       gender: member.gender,
       date_of_birth: member.date_of_birth ? member.date_of_birth.slice(0, 10) : '',
@@ -339,6 +382,19 @@ export default function FamilyPage() {
       </nav>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* Family Tree */}
+        {user && (
+          <FamilyTree
+            members={members}
+            currentUser={{
+              first_name: user.first_name,
+              last_name: (user as any).last_name,
+              unique_id: user.unique_id,
+            }}
+          />
+        )}
+
         <div className="sacred-card p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="font-cinzel text-2xl font-bold text-sacred-800">Family Members</h2>
@@ -352,9 +408,64 @@ export default function FamilyPage() {
 
           {showForm && (
             <form onSubmit={handleSubmit} className="mb-6 border-b pb-6 space-y-4">
+
+              {/* ── Unique ID section ── */}
+              <div className="bg-gold-500/10 border border-gold-500/30 rounded-lg p-4 space-y-2">
+                <p className="text-sm font-semibold text-sacred-700">Unique ID</p>
+
+                {editingId ? (
+                  /* Edit mode: show ID read-only with copy button */
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-base font-bold text-sacred-800 tracking-widest bg-white border border-gold-400 px-3 py-1.5 rounded-md flex-1">
+                      {formData.unique_id || '—'}
+                    </span>
+                    {formData.unique_id && (
+                      <button type="button" onClick={() => { navigator.clipboard.writeText(formData.unique_id); toast.info('Copied!') }}
+                        className="sacred-btn text-sm px-3 py-1.5 shrink-0">Copy</button>
+                    )}
+                    {formData.linked_user_id && (
+                      <span className="text-xs font-mono bg-green-100 border border-green-300 text-green-700 px-2 py-1 rounded shrink-0">
+                        🔗 {formData.linked_user_id}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  /* Add mode: editable ID + lookup button */
+                  <>
+                    <p className="text-xs text-stone-500">
+                      If this member has a Pooja Sankalpam account, enter their <span className="font-mono">PS-XXXXXXXX</span> ID to auto-fill their details.
+                      Otherwise leave blank — a new ID will be created automatically.
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="PS-XXXXXXXX  or  leave blank to auto-generate"
+                        value={formData.unique_id}
+                        onChange={e => setFormData({ ...formData, unique_id: e.target.value.toUpperCase() })}
+                        className="sacred-input flex-1 font-mono uppercase text-sm"
+                        maxLength={15}
+                      />
+                      <button type="button" onClick={handleLookup}
+                        disabled={lookupLoading || !formData.unique_id.trim()}
+                        className="sacred-btn text-sm px-4 shrink-0 disabled:opacity-50">
+                        {lookupLoading ? 'Searching…' : 'Lookup & Fill'}
+                      </button>
+                    </div>
+                    {formData.linked_user_id && (
+                      <p className="text-xs text-green-700 font-medium">
+                        ✓ Linked to account <span className="font-mono">{formData.linked_user_id}</span>
+                        <button type="button" onClick={() => setFormData({ ...formData, unique_id: '', linked_user_id: '' })}
+                          className="ml-2 text-red-500 underline">Clear</button>
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* ── Name row ── */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Name *</label>
+                  <label className="block text-sm font-medium text-gray-700">First Name *</label>
                   <input
                     type="text"
                     required
@@ -363,6 +474,19 @@ export default function FamilyPage() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Last Name / Family Name</label>
+                  <input
+                    type="text"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    value={formData.last_name}
+                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                    placeholder="e.g. Sharma, Reddy, Iyer"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Relation *</label>
                   <select
@@ -686,11 +810,25 @@ export default function FamilyPage() {
               members.map((member) => (
                 <div key={member.id} className="border border-cream-300 rounded-lg p-4 flex justify-between items-center bg-cream-50">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-cinzel font-bold text-lg text-sacred-700">{member.name}</h3>
+                    <div className="flex items-center flex-wrap gap-2">
+                      <h3 className="font-cinzel font-bold text-lg text-sacred-700">
+                        {member.name}{member.last_name ? ` ${member.last_name}` : ''}
+                      </h3>
                       {member.is_deceased && (
-                        <span className="text-xs bg-stone-200 text-stone-600 px-2 py-0.5 rounded-full font-medium">
-                          Deceased
+                        <span className="text-xs bg-stone-200 text-stone-600 px-2 py-0.5 rounded-full font-medium">Deceased</span>
+                      )}
+                      {member.unique_id && (
+                        <span
+                          title="Click to copy Unique ID"
+                          onClick={() => { navigator.clipboard.writeText(member.unique_id!); toast.info(`Copied ${member.unique_id}`) }}
+                          className="cursor-pointer font-mono text-xs bg-gold-500/15 border border-gold-500/40 text-sacred-700 px-2 py-0.5 rounded hover:bg-gold-500/25 transition-colors"
+                        >
+                          {member.unique_id}
+                        </span>
+                      )}
+                      {member.linked_user_id && (
+                        <span className="font-mono text-xs bg-green-100 border border-green-300 text-green-700 px-2 py-0.5 rounded" title="Linked to a registered account">
+                          🔗 {member.linked_user_id}
                         </span>
                       )}
                     </div>
