@@ -1,9 +1,8 @@
 {
   "$schema": "https://schema.railpack.com",
-  "steps": {
-    "install": {
-      "commands": ["npm install"]
-    }
+  "build": {
+    "installCommand": "npm install --include=dev --force",
+    "buildCommand": "npx next build"
   },
   "deploy": {
     "startCommand": "npm run start"
