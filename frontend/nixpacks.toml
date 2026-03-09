@@ -5,7 +5,7 @@ nixPkgs = ["nodejs_20", "npm"]
 cmds = ["npm install --include=dev"]
 
 [phases.build]
-# We remove the problematic cache mount by overriding the build phase
+# We explicitly override the build phase to stop the broken cache mount
 cmds = ["npm run build"]
 cacheDirectories = ["node_modules/.cache", ".next/cache"]
 
