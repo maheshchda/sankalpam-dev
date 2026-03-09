@@ -1,13 +1,11 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "npm"]
+nixPkgs = ["nodejs_20"]
 
 [phases.install]
 cmds = ["npm install --include=dev"]
 
 [phases.build]
-# We explicitly override the build phase to stop the broken cache mount
 cmds = ["npm run build"]
-cacheDirectories = ["node_modules/.cache", ".next/cache"]
 
 [start]
 cmd = "npm run start"
