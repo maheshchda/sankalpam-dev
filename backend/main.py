@@ -158,6 +158,9 @@ def _is_allowed_origin(origin: str) -> bool:
     # Allow any *.railway.app / *.vercel.app subdomain automatically
     if origin.endswith(".railway.app") or origin.endswith(".vercel.app"):
         return True
+    # Allow production custom domain
+    if "poojasankalp.org" in origin:
+        return True
     return False
 
 # CORS middleware
