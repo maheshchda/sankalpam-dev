@@ -5,6 +5,7 @@ nixPkgs = ["nodejs_20"]
 cmds = ["npm install --include=dev"]
 
 [phases.build]
+# We are intentionally leaving out 'cacheDirectories' here to reset the build
 cmds = ["npm run build"]
 
 [start]
