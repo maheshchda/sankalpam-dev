@@ -34,7 +34,8 @@ export default function LoginPage() {
     } catch (error: any) {
       const msg = error.response?.data?.detail || error.message || 'Login failed'
       const isNetwork = !error.response && (error.message === 'Network Error' || error.code === 'ERR_NETWORK')
-      toast.error(isNetwork ? 'Cannot reach server. Is the backend running at http://localhost:8000? Check browser console (F12) for CORS or network errors.' : msg)
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      toast.error(isNetwork ? `Cannot reach server. Is the backend running at ${apiUrl}? Check browser console (F12) for CORS or network errors.` : msg)
     } finally {
       setLoading(false)
     }
