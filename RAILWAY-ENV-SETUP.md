@@ -1,4 +1,12 @@
-# Railway Environment Variables
+# Railway Environment Variables & Deployment
+
+## Fix: Backend build fails with "Could not read package.json"
+
+**Cause:** Railway is building from the **repo root** instead of the `backend` folder. Railpack detects both Python and Node, then runs `npm run build` from `/app` where `package.json` doesn't exist.
+
+**Fix:** In Railway → **backend** service → **Settings** → set **Root Directory** to `backend`.
+
+---
 
 ## Fix: Live site calling localhost instead of production API
 
