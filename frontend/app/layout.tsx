@@ -12,6 +12,9 @@ const cinzel = Cinzel({ subsets: ['latin'], variable: '--font-cinzel', weight: [
 export const metadata: Metadata = {
   title: 'Pooja Sankalpam',
   description: 'Comprehensive pooja management with personalized sankalpam generation',
+  icons: {
+    icon: '/icon',
+  },
 }
 
 export default function RootLayout({
