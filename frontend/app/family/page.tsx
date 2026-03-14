@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import api from '@/lib/api'
@@ -133,6 +133,7 @@ export default function FamilyPage() {
   const [deathCountryCode, setDeathCountryCode] = useState('')
   const [deathStateCode, setDeathStateCode]     = useState('')
 
+  const formRef = useRef<HTMLFormElement | null>(null)
   const deathStates = useMemo(
     () => deathCountryCode ? State.getStatesOfCountry(deathCountryCode) : [],
     [deathCountryCode]
@@ -330,6 +331,10 @@ export default function FamilyPage() {
   const startEdit = (member: FamilyMember) => {
     setEditingId(member.id)
     setShowForm(true)
+    // Scroll form into view after React has rendered it
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
 
     // Restore death location dropdown codes from stored country/state names
     const dCountry = member.death_country || ''
@@ -422,7 +427,7 @@ export default function FamilyPage() {
           </div>
 
           {showForm && (
-            <form onSubmit={handleSubmit} className="mb-6 border-b pb-6 space-y-4">
+            <form ref={formRef} onSubmit={handleSubmit} className="mb-6 border-b pb-6 space-y-4">
 
               {/* ── Unique ID section ── */}
               <div className="bg-gold-500/10 border border-gold-500/30 rounded-lg p-4 space-y-2">
@@ -877,8 +882,8 @@ export default function FamilyPage() {
                     )}
                   </div>
                   <div className="space-x-2 shrink-0">
-                    <button onClick={() => startEdit(member)} className="px-3 py-1 bg-cream-200 text-sacred-700 rounded hover:bg-cream-300 text-sm border border-cream-300">Edit</button>
-                    <button onClick={() => handleDelete(member.id)} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">Delete</button>
+                    <button type="button" onClick={() => startEdit(member)} className="px-3 py-1 bg-cream-200 text-sacred-700 rounded hover:bg-cream-300 text-sm border border-cream-300">Edit</button>
+                    <button type="button" onClick={() => handleDelete(member.id)} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">Delete</button>
                   </div>
                 </div>
               ))

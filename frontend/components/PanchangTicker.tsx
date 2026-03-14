@@ -54,9 +54,17 @@ interface PanchangData {
 interface FamilyMember {
   id: number
   name: string
-  relationship: string
+  relation: string
   is_deceased: boolean
 }
+
+// Only these relations are eligible for personalised Panchang (Taara Balam, Chandra Balam)
+const PANCHANG_ALLOWED_RELATIONS = new Set([
+  'Wife', 'Husband',           // Spouse
+  'Son', 'Daughter',           // Children
+  'Father', 'Mother',          // Parents
+  'Brother', 'Sister',         // Siblings (unmarried; married siblings excluded by convention)
+])
 
 // ── Color maps ────────────────────────────────────────────────────────────────
 const TEXT: Record<Score, string> = {
@@ -112,9 +120,48 @@ function Tooltip({ state }: { state: TooltipState }) {
   )
 }
 
+// ── Fallback data when API fails ─────────────────────────────────────────────
+function buildFallbackData(): PanchangData {
+  const now = new Date()
+  const weekday = now.toLocaleDateString('en-US', { weekday: 'long' })
+  const date = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  return {
+    date,
+    weekday,
+    tithi: '—',
+    tithi_end_time: '',
+    nakshatra: '—',
+    nakshatra_end_time: '',
+    yoga: '—',
+    karana: '—',
+    overall: 'yellow',
+    segments: [
+      { label: 'Vara', value: weekday, score: 'yellow', detail: '' },
+      { label: 'Tithi', value: '—', score: 'yellow', detail: 'Panchang unavailable' },
+      { label: 'Nakshatra', value: '—', score: 'yellow', detail: '' },
+    ],
+    durmuhurta: {
+      in_durmuhurta: false,
+      in_rahu_kala: false,
+      durmuhurta_windows: [],
+      rahu_kala_window: null,
+      next_durmuhurta: null,
+    },
+    is_janma_day: false,
+    personalized: false,
+    subject_name: '',
+    subject_is_self: true,
+    janma_nakshatra: '',
+    janma_rasi: '',
+    today_rasi: '',
+    chandra_balam: null,
+  }
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function PanchangTicker() {
   const [data, setData]                 = useState<PanchangData | null>(null)
+  const [loading, setLoading]           = useState(true)
   const [paused, setPaused]             = useState(false)
   const [tip, setTip]                   = useState<TooltipState | null>(null)
   const [members, setMembers]           = useState<FamilyMember[]>([])
@@ -122,12 +169,16 @@ export default function PanchangTicker() {
   const fetchedRef                      = useRef(false)
   const geoRef                          = useRef<{ lat?: number; lon?: number }>({})
 
-  // Fetch living family members once
+  // Fetch family members once — only those eligible for personalised Panchang
   useEffect(() => {
     api.get('/api/family/members')
       .then(res => {
         const list: FamilyMember[] = Array.isArray(res.data) ? res.data : []
-        setMembers(list.filter(m => !m.is_deceased))
+        setMembers(
+          list.filter(
+            m => !m.is_deceased && PANCHANG_ALLOWED_RELATIONS.has(m.relation)
+          )
+        )
       })
       .catch(() => {})
   }, [])
@@ -147,6 +198,9 @@ export default function PanchangTicker() {
       setData(res.data)
     } catch (err) {
       console.error('[PanchangTicker] fetch failed', err)
+      setData(buildFallbackData())
+    } finally {
+      setLoading(false)
     }
   }, [selectedId])
 
@@ -176,6 +230,43 @@ export default function PanchangTicker() {
     fetchPanchang(undefined, undefined, selectedId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId])
+
+  // Show loading ticker while fetching (keeps bar visible and scrolling)
+  if (loading && !data) {
+    const loadingNodes = [
+      <span key="l0" className="text-slate-400 mr-4">🕉️ Loading today&apos;s Panchang...</span>,
+      <span key="l1" className="text-slate-600 mr-4">•</span>,
+      <span key="l2" className="text-slate-500 mr-4">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}</span>,
+    ]
+    const loadingAll = [...loadingNodes, ...loadingNodes]
+    return (
+      <>
+        <style>{`
+          @keyframes ticker-scroll {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+          }
+          .ticker-track {
+            display: inline-flex;
+            white-space: nowrap;
+            animation: ticker-scroll 60s linear infinite;
+          }
+          .ticker-track.paused { animation-play-state: paused; }
+        `}</style>
+        <div className="relative w-full flex items-stretch border-b border-yellow-800 bg-yellow-950 text-sm z-40 select-none">
+          <div className="flex-none flex items-center px-2 border-r border-slate-700">
+            <span className="text-lg leading-none">🟡</span>
+          </div>
+          <div className="flex-1 overflow-hidden py-1.5">
+            <div className="ticker-track">{loadingAll}</div>
+          </div>
+          <div className="flex-none flex items-center px-3 border-l border-slate-700 bg-slate-900/60">
+            <span className="text-slate-400 text-xs">Loading...</span>
+          </div>
+        </div>
+      </>
+    )
+  }
 
   if (!data) return null
 
@@ -348,7 +439,7 @@ export default function PanchangTicker() {
             <option value="">Myself</option>
             {members.map(m => (
               <option key={m.id} value={m.id}>
-                {m.name} ({m.relationship})
+                {m.name} ({m.relation})
               </option>
             ))}
           </select>
