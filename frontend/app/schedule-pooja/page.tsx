@@ -149,6 +149,7 @@ export default function SchedulePoojaPage() {
   const [addMoreInvitees, setAddMoreInvitees] = useState<Invitee[]>([EMPTY_INVITEE()])
   const [addingInvitees, setAddingInvitees] = useState(false)
   const [cancellingInvitee, setCancellingInvitee] = useState<{ scheduleId: number; inviteeId: number } | null>(null)
+  const [resendingInvitee, setResendingInvitee] = useState<{ scheduleId: number; inviteeId: number } | null>(null)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelModal, setCancelModal] = useState<{ scheduleId: number; inviteeId: number; name: string } | null>(null)
 
@@ -330,6 +331,19 @@ export default function SchedulePoojaPage() {
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Failed to add invitees.')
     } finally { setAddingInvitees(false) }
+  }
+
+  // ── Resend invite (single) ──────────────────────────────────────────────────
+  const handleResendInvite = async (scheduleId: number, inviteeId: number) => {
+    setResendingInvitee({ scheduleId, inviteeId })
+    try {
+      const r = await api.post(`/api/rsvp/${scheduleId}/invitees/${inviteeId}/resend`)
+      toast.success(r.data.sent ? 'Invitation resent!' : r.data.message || 'Failed to send.')
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to resend invite.')
+    } finally {
+      setResendingInvitee(null)
+    }
   }
 
   // ── Cancel invite ─────────────────────────────────────────────────────────
@@ -810,6 +824,14 @@ export default function SchedulePoojaPage() {
                                     onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/rsvp/${inv.rsvp_token}`); toast.success('RSVP link copied!') }}
                                     className="text-xs text-gold-600 hover:text-gold-700 border border-gold-400/30 px-2 py-1 rounded" title="Copy RSVP link">
                                     🔗 Link
+                                  </button>
+                                )}
+                                {inv.status !== 'cancelled' && (
+                                  <button
+                                    onClick={() => handleResendInvite(s.id, inv.id)}
+                                    disabled={!!resendingInvitee}
+                                    className="text-xs text-sacred-700 hover:text-sacred-900 border border-sacred-400/40 px-2 py-1 rounded disabled:opacity-50" title="Resend invite">
+                                    {resendingInvitee?.scheduleId === s.id && resendingInvitee?.inviteeId === inv.id ? 'Sending…' : '📨 Resend'}
                                   </button>
                                 )}
                                 {inv.status !== 'cancelled' && (

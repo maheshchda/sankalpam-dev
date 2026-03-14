@@ -254,6 +254,85 @@ async def get_members_for_rsvp(unique_id: str, db: Session = Depends(get_db)):
     return result
 
 
+# ─── HOST: Resend invite (single invitee) ───────────────────────────────────────
+
+@router.post("/{schedule_id}/invitees/{invitee_id}/resend", status_code=200)
+async def resend_invite(
+    schedule_id: int,
+    invitee_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Resend the invitation email to a single invitee."""
+    schedule = (
+        db.query(PoojaSchedule)
+        .filter(PoojaSchedule.id == schedule_id, PoojaSchedule.user_id == current_user.id)
+        .first()
+    )
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found.")
+
+    inv = next((i for i in schedule.invitees if i.id == invitee_id), None)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invitee not found.")
+    if getattr(inv, "cancelled_at", None):
+        raise HTTPException(status_code=400, detail="Cannot resend to a cancelled invitee.")
+
+    # Ensure token exists
+    if not inv.rsvp_token:
+        tok = _make_token()
+        while db.query(PoojaScheduleInvitee).filter(PoojaScheduleInvitee.rsvp_token == tok).first():
+            tok = _make_token()
+        inv.rsvp_token = tok
+        db.flush()
+
+    host_name = f"{current_user.first_name} {current_user.last_name}".strip() or current_user.username
+    pooja_name = schedule.pooja_name or "Pooja Ceremony"
+    date_str = _format_date(schedule.scheduled_date)
+    invitee_name = f"{inv.name}{' ' + inv.last_name if inv.last_name else ''}"
+
+    import os
+    image_url: Optional[str] = None
+    if schedule.image_path:
+        backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+        image_url = backend_url.rstrip("/") + schedule.image_path
+
+    rsvp_url = f"{settings.frontend_url.rstrip('/')}/rsvp/{inv.rsvp_token}"
+    html = build_invitation_html(
+        invitee_name=invitee_name,
+        pooja_name=pooja_name,
+        scheduled_date=date_str,
+        host_name=host_name,
+        invite_message=schedule.invite_message or "",
+        rsvp_url=rsvp_url,
+        image_url=image_url,
+        frontend_url=settings.frontend_url,
+        venue_place=schedule.venue_place,
+        venue_street_number=schedule.venue_street_number,
+        venue_street_name=schedule.venue_street_name,
+        venue_city=schedule.venue_city,
+        venue_state=schedule.venue_state,
+        venue_country=schedule.venue_country,
+        venue_coordinates=schedule.venue_coordinates,
+    )
+    text = build_invitation_text(
+        invitee_name=invitee_name,
+        pooja_name=pooja_name,
+        scheduled_date=date_str,
+        host_name=host_name,
+        invite_message=schedule.invite_message or "",
+        rsvp_url=rsvp_url,
+    )
+    ok = send_email(
+        to=inv.email,
+        subject=f"🪔 You're invited to {pooja_name} — {date_str}",
+        html_body=html,
+        text_body=text,
+    )
+    db.commit()
+    return {"message": "Invitation resent." if ok else "Failed to send email.", "sent": ok}
+
+
 # ─── HOST: Cancel invite ──────────────────────────────────────────────────────
 
 class CancelInviteRequest(BaseModel):
