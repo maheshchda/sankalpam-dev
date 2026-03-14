@@ -22,12 +22,16 @@ api.interceptors.request.use((config) => {
 })
 
 // Handle token expiration (don't redirect on login endpoint 401 so user sees error)
+// Don't redirect if already on a public page — avoids recursive refresh on login/register
+const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/verify', '/admin/login', '/rsvp']
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
       const isLoginRequest = error.config?.url?.includes('/api/auth/login')
-      if (!isLoginRequest) {
+      const pathname = window.location.pathname
+      const isPublicPage = PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
+      if (!isLoginRequest && !isPublicPage) {
         localStorage.removeItem('access_token')
         window.location.href = '/login'
       }

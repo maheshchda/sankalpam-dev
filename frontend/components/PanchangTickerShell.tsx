@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useAuth } from '@/lib/auth'
 import PanchangTicker from './PanchangTicker'
 
 const STORAGE_KEY = 'panchang_ticker_visible'
@@ -15,6 +16,7 @@ function readVisible(): boolean {
 }
 
 export default function PanchangTickerShell() {
+  const { user, loading } = useAuth()
   const [visible, setVisible] = useState(true)
 
   useEffect(() => {
@@ -30,6 +32,9 @@ export default function PanchangTickerShell() {
       return next
     })
   }, [])
+
+  // Only show when user is logged in (auth done and user exists)
+  if (loading || !user) return null
 
   return (
     <div className="sticky top-0 z-50">

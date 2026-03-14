@@ -284,9 +284,24 @@ export default function ProfilePage() {
         <div className="sacred-card p-6 space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="font-cinzel text-2xl font-bold text-sacred-800">Your Profile</h2>
-            <div className="text-sm text-stone-500 text-right">
+            <div className="text-sm text-stone-500 text-right space-y-1">
               <div>Username: {user.username}</div>
               <div>Email: {user.email}</div>
+              <div className="flex items-center gap-2 justify-end">
+                <span>Unique ID: {user.unique_id || '—'}</span>
+                {user.unique_id && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(user.unique_id!)
+                      toast.info('Copied!')
+                    }}
+                    className="px-2 py-0.5 text-xs bg-gold-500/20 text-sacred-700 rounded hover:bg-gold-500/30"
+                  >
+                    Copy
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

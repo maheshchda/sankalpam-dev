@@ -5,6 +5,7 @@ import api from './api'
 
 interface User {
   id: number
+  unique_id?: string
   username: string
   email: string
   first_name: string

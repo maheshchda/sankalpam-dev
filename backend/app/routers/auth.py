@@ -6,7 +6,7 @@ import secrets
 from datetime import datetime
 
 from app.database import get_db
-from app.models import User, VerificationToken, VerificationStatus
+from app.models import User, VerificationToken, VerificationStatus, _gen_uid
 from app.schemas import UserCreate, UserResponse, Token, LoginRequest, VerificationRequest, ForgotPasswordRequest, ResetPasswordRequest
 from app.auth import verify_password, get_password_hash, create_access_token
 from app.dependencies import get_current_user
@@ -173,7 +173,18 @@ async def verify_account(verification: VerificationRequest, db: Session = Depend
     return {"message": f"{verification.verification_type} verified successfully"}
 
 @router.get("/me", response_model=UserResponse)
-async def read_users_me(current_user: User = Depends(get_current_user)):
+async def read_users_me(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Assign unique_id (PS-xxx) if not yet set
+    if not current_user.unique_id:
+        uid = _gen_uid("PS")
+        while db.query(User).filter(User.unique_id == uid).first():
+            uid = _gen_uid("PS")
+        current_user.unique_id = uid
+        db.commit()
+        db.refresh(current_user)
     return current_user
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
