@@ -586,6 +586,33 @@ async def list_states():
         return {"states": FALLBACK_STATES}
 
 
+# Additional fallback yearly poojas when Excel is missing
+_FALLBACK_YEARLY_POOJAS = [
+    {"pooja_name": "Diwali Lakshmi Pooja", "freq": "Annual", "cal": "Lunar", "local_language": "Diwali Lakshmi Pooja", "pooja_date": ""},
+    {"pooja_name": "Ganesh Chaturthi", "freq": "Annual", "cal": "Lunar", "local_language": "Vinayaka Chaturthi", "pooja_date": ""},
+    {"pooja_name": "Maha Shivaratri", "freq": "Annual", "cal": "Lunar", "local_language": "Maha Shivaratri", "pooja_date": ""},
+    {"pooja_name": "Navaratri", "freq": "Annual", "cal": "Lunar", "local_language": "Navaratri / Durga Pooja", "pooja_date": ""},
+    {"pooja_name": "Ugadi / Gudi Padwa", "freq": "Annual", "cal": "Lunar", "local_language": "New Year", "pooja_date": ""},
+    {"pooja_name": "Makar Sankranti", "freq": "Annual", "cal": "Solar", "local_language": "Pongal / Sankranti", "pooja_date": ""},
+]
+
+
+def _get_fallback_pooja_rows(
+    pooja_type: str | None,
+    language_code: str | None,
+) -> list[dict[str, str]]:
+    """Return common poojas when Excel file is missing (e.g. not deployed)."""
+    base: list[dict[str, str]] = []
+    with_ganesha = _inject_ganesha_pooja_row(base, pooja_type, language_code)
+    with_common = _inject_common_pooja_rows(with_ganesha, pooja_type, language_code)
+    selected_type = (pooja_type or "").strip().lower()
+    if selected_type in ("", "yearly"):
+        for row in _FALLBACK_YEARLY_POOJAS:
+            if not any(r.get("pooja_name") == row["pooja_name"] and r.get("freq") == row["freq"] for r in with_common):
+                with_common.append(row)
+    return with_common
+
+
 @router.get("/data")
 async def get_calendar_data(
     state: str = Query(..., description="State name (e.g. Andhra Pradesh)"),
@@ -596,6 +623,7 @@ async def get_calendar_data(
 ):
     """Return table rows for the selected state/year/type. Excludes date/muhurta columns."""
     if not EXCEL_PATH.exists():
-        return {"rows": [], "error": "Excel file not found"}
+        rows = _get_fallback_pooja_rows(type, language_code)
+        return {"rows": rows}
     rows = _read_sheet(state, year, type, language_code, country)
     return {"rows": rows}

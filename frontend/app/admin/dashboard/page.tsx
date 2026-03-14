@@ -1,11 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import AdminLayout from '@/components/admin/AdminLayout'
 import UserManagementPanel from '@/components/admin/UserManagementPanel'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+const VALID_TABS = ['stats', 'roles', 'users', 'admins'] as const
+type TabType = (typeof VALID_TABS)[number]
 
 type Stats = {
   total_users: number
@@ -32,8 +35,17 @@ type Permission = { code: string; description: string }
 
 export default function AdminDashboard() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const tabParam = searchParams.get('tab')
+  const initialTab: TabType = VALID_TABS.includes(tabParam as TabType) ? (tabParam as TabType) : 'stats'
   const [token, setToken] = useState<string | null>(null)
-  const [tab, setTab] = useState<'stats' | 'roles' | 'users' | 'admins'>('stats')
+  const [tab, setTab] = useState<TabType>(initialTab)
+
+  useEffect(() => {
+    if (tabParam && VALID_TABS.includes(tabParam as TabType)) {
+      setTab(tabParam as TabType)
+    }
+  }, [tabParam])
 
   const [stats, setStats] = useState<Stats | null>(null)
   const [roles, setRoles] = useState<AdminRole[]>([])
@@ -173,7 +185,7 @@ export default function AdminDashboard() {
           ['users',  'User Management'],
           ['admins', 'Admin Accounts'],
           ['roles',  'Roles & Permissions'],
-        ] as [typeof tab, string][]).map(([key, label]) => (
+        ] as [TabType, string][]).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
