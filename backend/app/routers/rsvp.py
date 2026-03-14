@@ -7,6 +7,7 @@ RSVP Router — all endpoints are either:
 import json
 import secrets
 from datetime import datetime, timezone
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -15,6 +16,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.email_service import (
+    build_cancellation_html,
+    build_cancellation_text,
     build_invitation_html,
     build_invitation_text,
     send_email,
@@ -59,7 +62,8 @@ async def send_invitations(
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found.")
 
-    if not schedule.invitees:
+    active_invitees_list = [i for i in schedule.invitees if not getattr(i, "cancelled_at", None)]
+    if not active_invitees_list:
         raise HTTPException(status_code=400, detail="No invitees to send to.")
 
     host_name = f"{current_user.first_name} {current_user.last_name}".strip() or current_user.username
@@ -78,7 +82,7 @@ async def send_invitations(
 
     sent_count = 0
     skipped = []
-    for inv in schedule.invitees:
+    for inv in active_invitees_list:
         # Assign token if missing
         if not inv.rsvp_token:
             tok = _make_token()
@@ -128,8 +132,8 @@ async def send_invitations(
     return {
         "sent": sent_count,
         "skipped": skipped,
-        "total": len(schedule.invitees),
-        "message": f"Invitations sent to {sent_count} of {len(schedule.invitees)} invitees.",
+        "total": len(active_invitees_list),
+        "message": f"Invitations sent to {sent_count} of {len(active_invitees_list)} invitees.",
     }
 
 
@@ -145,6 +149,8 @@ async def view_invitation(token: str, db: Session = Depends(get_db)):
     )
     if not inv:
         raise HTTPException(status_code=404, detail="Invitation not found.")
+    if getattr(inv, "cancelled_at", None):
+        raise HTTPException(status_code=410, detail="This invitation has been cancelled.")
 
     schedule = inv.schedule
     host = db.query(User).filter(User.id == schedule.user_id).first()
@@ -187,6 +193,8 @@ async def submit_rsvp(token: str, data: RsvpSubmit, db: Session = Depends(get_db
     )
     if not inv:
         raise HTTPException(status_code=404, detail="Invitation not found.")
+    if getattr(inv, "cancelled_at", None):
+        raise HTTPException(status_code=410, detail="This invitation has been cancelled.")
 
     inv.rsvp_status = data.status
     inv.rsvp_notes = data.notes
@@ -246,6 +254,70 @@ async def get_members_for_rsvp(unique_id: str, db: Session = Depends(get_db)):
     return result
 
 
+# ─── HOST: Cancel invite ──────────────────────────────────────────────────────
+
+class CancelInviteRequest(BaseModel):
+    reason: Optional[str] = Field(None, max_length=500)
+
+
+@router.post("/{schedule_id}/invitees/{invitee_id}/cancel", status_code=200)
+async def cancel_invite(
+    schedule_id: int,
+    invitee_id: int,
+    data: CancelInviteRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Cancel an invitee's invitation. Sends a cancellation email to the invitee."""
+    schedule = (
+        db.query(PoojaSchedule)
+        .filter(PoojaSchedule.id == schedule_id, PoojaSchedule.user_id == current_user.id)
+        .first()
+    )
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found.")
+
+    inv = next((i for i in schedule.invitees if i.id == invitee_id), None)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invitee not found.")
+
+    if getattr(inv, "cancelled_at", None):
+        return {"message": "Invitation was already cancelled."}
+
+    inv.cancelled_at = datetime.now(timezone.utc)
+    inv.cancelled_reason = (data.reason or "").strip() or None
+
+    # Send cancellation email
+    host_name = f"{current_user.first_name} {current_user.last_name}".strip() or current_user.username
+    pooja_name = schedule.pooja_name or "Pooja Ceremony"
+    date_str = _format_date(schedule.scheduled_date)
+    invitee_name = f"{inv.name}{' ' + inv.last_name if inv.last_name else ''}"
+
+    html = build_cancellation_html(
+        invitee_name=invitee_name,
+        pooja_name=pooja_name,
+        scheduled_date=date_str,
+        host_name=host_name,
+        reason=inv.cancelled_reason or "",
+    )
+    text = build_cancellation_text(
+        invitee_name=invitee_name,
+        pooja_name=pooja_name,
+        scheduled_date=date_str,
+        host_name=host_name,
+        reason=inv.cancelled_reason or "",
+    )
+    send_email(
+        to=inv.email,
+        subject=f"Invitation cancelled: {pooja_name} — {date_str}",
+        html_body=html,
+        text_body=text,
+    )
+
+    db.commit()
+    return {"message": "Invitation cancelled. The invitee has been notified."}
+
+
 # ─── HOST: Get RSVP summary for a schedule ───────────────────────────────────
 
 @router.get("/summary/{schedule_id}")
@@ -263,19 +335,33 @@ async def rsvp_summary(
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found.")
 
-    summary = {"attending": 0, "not_attending": 0, "maybe": 0, "pending": 0, "invitees": []}
+    summary = {"attending": 0, "not_attending": 0, "maybe": 0, "pending": 0, "cancelled": 0, "invitees": []}
     for inv in schedule.invitees:
-        st = inv.rsvp_status or "pending"
-        summary[st] = summary.get(st, 0) + 1
-        summary["invitees"].append({
-            "id": inv.id,
-            "name": f"{inv.name}{' ' + inv.last_name if inv.last_name else ''}",
-            "email": inv.email,
-            "status": st,
-            "notes": inv.rsvp_notes,
-            "unique_id": inv.rsvp_unique_id,
-            "attending_members": json.loads(inv.attending_members or "[]"),
-            "rsvp_token": inv.rsvp_token,
-        })
+        if getattr(inv, "cancelled_at", None):
+            summary["cancelled"] = summary.get("cancelled", 0) + 1
+            summary["invitees"].append({
+                "id": inv.id,
+                "name": f"{inv.name}{' ' + inv.last_name if inv.last_name else ''}",
+                "email": inv.email,
+                "status": "cancelled",
+                "notes": inv.rsvp_notes,
+                "cancelled_reason": getattr(inv, "cancelled_reason", None),
+                "unique_id": inv.rsvp_unique_id,
+                "attending_members": json.loads(inv.attending_members or "[]"),
+                "rsvp_token": inv.rsvp_token,
+            })
+        else:
+            st = inv.rsvp_status or "pending"
+            summary[st] = summary.get(st, 0) + 1
+            summary["invitees"].append({
+                "id": inv.id,
+                "name": f"{inv.name}{' ' + inv.last_name if inv.last_name else ''}",
+                "email": inv.email,
+                "status": st,
+                "notes": inv.rsvp_notes,
+                "unique_id": inv.rsvp_unique_id,
+                "attending_members": json.loads(inv.attending_members or "[]"),
+                "rsvp_token": inv.rsvp_token,
+            })
 
     return summary

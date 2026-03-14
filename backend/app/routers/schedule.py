@@ -141,6 +141,44 @@ async def get_schedule(
     return schedule
 
 
+@router.patch("/{schedule_id}/invitees", response_model=PoojaScheduleResponse)
+async def add_invitees(
+    schedule_id: int,
+    invitees_json: str = Form(default="[]"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Add more invitees to an existing schedule (e.g. after invitations were sent)."""
+    schedule = (
+        db.query(PoojaSchedule)
+        .filter(PoojaSchedule.id == schedule_id, PoojaSchedule.user_id == current_user.id)
+        .first()
+    )
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found.")
+
+    try:
+        raw_invitees = json.loads(invitees_json)
+    except json.JSONDecodeError:
+        raw_invitees = []
+
+    for inv in raw_invitees:
+        name = (inv.get("name") or "").strip()
+        email = (inv.get("email") or "").strip()
+        if not name or not email:
+            continue
+        db.add(PoojaScheduleInvitee(
+            schedule_id=schedule.id,
+            name=name,
+            last_name=(inv.get("last_name") or "").strip() or None,
+            email=email,
+        ))
+
+    db.commit()
+    db.refresh(schedule)
+    return schedule
+
+
 @router.delete("/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_schedule(
     schedule_id: int,

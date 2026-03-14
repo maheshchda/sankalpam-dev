@@ -32,9 +32,24 @@ If using a custom domain, ensure CORS allows it. The backend already allows `poo
 |----------|-------|
 | `ALLOWED_ORIGINS` | `https://www.poojasankalp.org,https://poojasankalp.org` |
 
+### Email (SMTP) — for invitations & verification
+
+For schedule-pooja invitations and auth emails to work in production, add these to your **backend** service:
+
+| Variable | Value |
+|----------|-------|
+| `SMTP_HOST` | `smtp-relay.brevo.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USER` | Your Brevo SMTP login |
+| `SMTP_PASSWORD` | Your Brevo SMTP key (Settings → SMTP & API → SMTP Keys) |
+| `EMAIL_FROM` | `poojasankalpam@gmail.com` |
+| `FRONTEND_URL` | `https://www.poojasankalp.org` |
+| `BACKEND_URL` | `https://api.poojasankalp.org` |
+
 ### Checklist
 
 1. [ ] Backend deployed on Railway (or elsewhere)
 2. [ ] `NEXT_PUBLIC_API_URL` set in frontend service = backend URL
 3. [ ] Redeploy frontend after adding env var
 4. [ ] Backend CORS allows your domain (poojasankalp.org is already in code)
+5. [ ] SMTP env vars set for invitation emails

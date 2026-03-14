@@ -263,3 +263,54 @@ Please RSVP here:
 With blessings,
 Pooja Sankalpam
 """
+
+
+def build_cancellation_html(
+    *,
+    invitee_name: str,
+    pooja_name: str,
+    scheduled_date: str,
+    host_name: str,
+    reason: str,
+) -> str:
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><title>Invitation Cancelled</title></head>
+<body style="margin:0;padding:0;background:#f5f0e8;font-family:Georgia,serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#fff9ef;border-radius:16px;border:2px solid #c9a227;padding:32px 40px;">
+        <tr><td style="text-align:center;padding-bottom:24px;">
+          <p style="margin:0;color:#c9a227;font-size:13px;letter-spacing:3px;">Pooja Sankalpam</p>
+          <h1 style="margin:12px 0 0 0;color:#2d1b0e;font-size:24px;">Invitation Cancelled</h1>
+        </td></tr>
+        <tr><td style="color:#4a3728;font-size:15px;line-height:1.7;">
+          <p>Dear <strong>{invitee_name}</strong>,</p>
+          <p>We regret to inform you that your invitation to <strong>{pooja_name}</strong> on <strong>{scheduled_date}</strong> has been cancelled by {host_name}.</p>
+          {f'<p style="background:#fdf8f0;border-left:4px solid #c9a227;padding:16px 20px;border-radius:4px;margin:20px 0;"><strong>Reason:</strong> {reason}</p>' if reason else ''}
+          <p>If you have any questions, please contact the host directly.</p>
+          <p style="margin-top:28px;">With regards,<br/>Pooja Sankalpam</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
+def build_cancellation_text(
+    *,
+    invitee_name: str,
+    pooja_name: str,
+    scheduled_date: str,
+    host_name: str,
+    reason: str,
+) -> str:
+    lines = [
+        f"Dear {invitee_name},",
+        f"Your invitation to {pooja_name} on {scheduled_date} has been cancelled by {host_name}.",
+    ]
+    if reason:
+        lines.append(f"Reason: {reason}")
+    lines.extend(["", "If you have questions, please contact the host directly.", "", "Pooja Sankalpam"])
+    return "\n".join(lines)

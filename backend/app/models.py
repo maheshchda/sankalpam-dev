@@ -327,6 +327,10 @@ class PoojaScheduleInvitee(Base):
     rsvp_notes = Column(Text, nullable=True)
     rsvp_updated_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Cancel invite (host-initiated)
+    cancelled_at = Column(DateTime(timezone=True), nullable=True)
+    cancelled_reason = Column(Text, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     schedule = relationship("PoojaSchedule", back_populates="invitees")

@@ -283,6 +283,8 @@ class InviteeResponse(InviteeCreate):
     attending_members: Optional[str] = None   # JSON string
     rsvp_notes: Optional[str] = None
     rsvp_updated_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
+    cancelled_reason: Optional[str] = None
     model_config = {"from_attributes": True}
 
 class PoojaScheduleCreate(BaseModel):

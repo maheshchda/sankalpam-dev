@@ -29,6 +29,8 @@ interface ScheduleInvitee {
   email: string
   rsvp_status?: string
   rsvp_token?: string
+  cancelled_at?: string | null
+  cancelled_reason?: string | null
 }
 
 interface Schedule {
@@ -53,12 +55,14 @@ interface RsvpSummary {
   not_attending: number
   maybe: number
   pending: number
+  cancelled?: number
   invitees: {
     id: number
     name: string
     email: string
     status: string
     notes?: string
+    cancelled_reason?: string
     rsvp_token?: string
   }[]
 }
@@ -141,6 +145,12 @@ export default function SchedulePoojaPage() {
   const [sendingInvites, setSendingInvites] = useState<number | null>(null)
   const [rsvpSummary, setRsvpSummary] = useState<Record<number, RsvpSummary>>({})
   const [expandedRsvp, setExpandedRsvp] = useState<number | null>(null)
+  const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null)
+  const [addMoreInvitees, setAddMoreInvitees] = useState<Invitee[]>([EMPTY_INVITEE()])
+  const [addingInvitees, setAddingInvitees] = useState(false)
+  const [cancellingInvitee, setCancellingInvitee] = useState<{ scheduleId: number; inviteeId: number } | null>(null)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelModal, setCancelModal] = useState<{ scheduleId: number; inviteeId: number; name: string } | null>(null)
 
   // ── Fetch schedules on mount ─────────────────────────────────────────────
   useEffect(() => {
@@ -297,6 +307,52 @@ export default function SchedulePoojaPage() {
     if (!confirm('Delete this scheduled pooja?')) return
     try { await api.delete(`/api/schedule/${id}`); toast.success('Schedule deleted.'); fetchSchedules() }
     catch { toast.error('Failed to delete.') }
+  }
+
+  // ── Add more invitees ─────────────────────────────────────────────────────
+  const openEditInvitees = (schedule: Schedule) => {
+    setEditingScheduleId(schedule.id)
+    setAddMoreInvitees([EMPTY_INVITEE()])
+  }
+  const handleAddMoreInvitees = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingScheduleId) return
+    const valid = addMoreInvitees.filter(i => i.name.trim() && i.email.trim())
+    if (valid.length === 0) { toast.error('Add at least one invitee.'); return }
+    setAddingInvitees(true)
+    try {
+      await api.patch(`/api/schedule/${editingScheduleId}/invitees`, new URLSearchParams({ invitees_json: JSON.stringify(valid) }), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      })
+      toast.success(`Added ${valid.length} invitee(s). Send invitations to notify them.`)
+      setEditingScheduleId(null)
+      fetchSchedules()
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to add invitees.')
+    } finally { setAddingInvitees(false) }
+  }
+
+  // ── Cancel invite ─────────────────────────────────────────────────────────
+  const openCancelModal = (scheduleId: number, inviteeId: number, name: string) => {
+    setCancelModal({ scheduleId, inviteeId, name })
+    setCancelReason('')
+  }
+  const handleCancelInvite = async () => {
+    if (!cancelModal) return
+    setCancellingInvitee({ scheduleId: cancelModal.scheduleId, inviteeId: cancelModal.inviteeId })
+    try {
+      await api.post(`/api/rsvp/${cancelModal.scheduleId}/invitees/${cancelModal.inviteeId}/cancel`, { reason: cancelReason })
+      toast.success('Invitation cancelled. The invitee has been notified.')
+      setCancelModal(null)
+      setCancelReason('')
+      fetchSchedules()
+      if (expandedRsvp === cancelModal.scheduleId) {
+        const r = await api.get(`/api/rsvp/summary/${cancelModal.scheduleId}`)
+        setRsvpSummary(prev => ({ ...prev, [cancelModal!.scheduleId]: r.data }))
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to cancel invite.')
+    } finally { setCancellingInvitee(null) }
   }
 
   // ── Guards ────────────────────────────────────────────────────────────────
@@ -698,10 +754,14 @@ export default function SchedulePoojaPage() {
                       {/* Action buttons */}
                       <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-cream-300">
                         <button onClick={() => handleSendInvites(s.id)}
-                          disabled={sendingInvites === s.id || s.invitees.length === 0}
+                          disabled={sendingInvites === s.id || s.invitees.filter(i => !i.cancelled_at).length === 0}
                           className="flex items-center gap-1.5 text-sm bg-sacred-800 hover:bg-sacred-700 text-gold-300 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 font-medium">
                           {sendingInvites === s.id ? <span className="animate-pulse">Sending…</span>
                             : <>{invitesSent ? '📨 Resend Invitations' : '📨 Send Invitations'}</>}
+                        </button>
+                        <button onClick={() => openEditInvitees(s)}
+                          className="flex items-center gap-1.5 text-sm border border-sacred-600/40 text-sacred-700 hover:bg-sacred-100 px-4 py-2 rounded-lg transition-colors">
+                          ✏️ Add More Invitees
                         </button>
                         {invitesSent && (
                           <button onClick={() => loadRsvpSummary(s.id)}
@@ -726,35 +786,47 @@ export default function SchedulePoojaPage() {
                             { key:'maybe',         label:'Maybe',        emoji:'🤔', cls:'bg-blue-100 text-blue-700 border-blue-200'   },
                             { key:'not_attending', label:"Can't attend", emoji:'❌', cls:'bg-red-100 text-red-600 border-red-200'      },
                             { key:'pending',       label:'Pending',      emoji:'⏳', cls:'bg-stone-100 text-stone-600 border-stone-200' },
-                          ].map(({ key, label, emoji, cls }) => (
+                            { key:'cancelled',     label:'Cancelled',    emoji:'🚫', cls:'bg-stone-200 text-stone-600 border-stone-300' },
+                          ].map(({ key, label, emoji, cls }) => ((summary as any)[key] || 0) > 0 ? (
                             <span key={key} className={`text-xs font-medium px-3 py-1 rounded-full border ${cls}`}>
-                              {emoji} {label}: {(summary as any)[key] || 0}
+                              {emoji} {label}: {(summary as any)[key]}
                             </span>
-                          ))}
+                          ) : null)}
                         </div>
                         <div className="space-y-2">
                           {summary.invitees.map(inv => (
-                            <div key={inv.id} className="flex items-center justify-between gap-3 bg-white rounded-lg border border-cream-300 px-3 py-2.5">
+                            <div key={inv.id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 ${
+                              inv.status === 'cancelled' ? 'bg-stone-100 border-stone-300 opacity-75' : 'bg-white border-cream-300'
+                            }`}>
                               <div className="min-w-0">
-                                <p className="text-sm font-medium text-sacred-700 truncate">{inv.name}</p>
+                                <p className={`text-sm font-medium truncate ${inv.status === 'cancelled' ? 'text-stone-500 line-through' : 'text-sacred-700'}`}>{inv.name}</p>
                                 <p className="text-xs text-stone-400 truncate">{inv.email}</p>
-                                {inv.notes && <p className="text-xs italic text-stone-500 mt-0.5">&ldquo;{inv.notes}&rdquo;</p>}
+                                {inv.notes && inv.status !== 'cancelled' && <p className="text-xs italic text-stone-500 mt-0.5">&ldquo;{inv.notes}&rdquo;</p>}
+                                {inv.status === 'cancelled' && inv.cancelled_reason && <p className="text-xs italic text-stone-500 mt-0.5">Reason: {inv.cancelled_reason}</p>}
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                {inv.rsvp_token && (
+                                {inv.status !== 'cancelled' && inv.rsvp_token && (
                                   <button
                                     onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/rsvp/${inv.rsvp_token}`); toast.success('RSVP link copied!') }}
                                     className="text-xs text-gold-600 hover:text-gold-700 border border-gold-400/30 px-2 py-1 rounded" title="Copy RSVP link">
                                     🔗 Link
                                   </button>
                                 )}
+                                {inv.status !== 'cancelled' && (
+                                  <button
+                                    onClick={() => openCancelModal(s.id, inv.id, inv.name)}
+                                    className="text-xs text-red-500 hover:text-red-700 border border-red-200 px-2 py-1 rounded" title="Cancel invite">
+                                    Cancel
+                                  </button>
+                                )}
                                 <span className={`text-xs px-2 py-1 rounded-full font-medium border ${
                                   inv.status === 'attending'     ? 'bg-green-100 text-green-700 border-green-200'   :
                                   inv.status === 'not_attending' ? 'bg-red-100 text-red-600 border-red-200'         :
                                   inv.status === 'maybe'         ? 'bg-blue-100 text-blue-700 border-blue-200'      :
+                                  inv.status === 'cancelled'     ? 'bg-stone-200 text-stone-600 border-stone-300'   :
                                   'bg-stone-100 text-stone-500 border-stone-200'
                                 }`}>
-                                  {inv.status === 'attending' ? '✅ Attending' : inv.status === 'not_attending' ? "❌ Can't attend" : inv.status === 'maybe' ? '🤔 Maybe' : '⏳ Pending'}
+                                  {inv.status === 'attending' ? '✅ Attending' : inv.status === 'not_attending' ? "❌ Can't attend" : inv.status === 'maybe' ? '🤔 Maybe' : inv.status === 'cancelled' ? '🚫 Cancelled' : '⏳ Pending'}
                                 </span>
                               </div>
                             </div>
@@ -766,6 +838,81 @@ export default function SchedulePoojaPage() {
                 )
               })
             )}
+          </div>
+        )}
+
+        {/* Add More Invitees Modal */}
+        {editingScheduleId && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="sacred-card p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+              <h3 className="font-cinzel text-xl font-bold text-sacred-800 mb-4">Add More Invitees</h3>
+              <form onSubmit={handleAddMoreInvitees} className="space-y-4">
+                <div className="space-y-2">
+                  {addMoreInvitees.map((inv, idx) => (
+                    <div key={idx} className="grid grid-cols-1 md:grid-cols-[2fr_2fr_3fr_auto] gap-2 items-center">
+                      <input type="text" placeholder="First name" value={inv.name}
+                        onChange={e => {
+                          const u = addMoreInvitees.map((i, j) => j === idx ? { ...i, name: e.target.value } : i)
+                          if (idx === u.length - 1 && e.target.value.trim()) u.push(EMPTY_INVITEE())
+                          setAddMoreInvitees(u)
+                        }}
+                        className="sacred-input text-sm" />
+                      <input type="text" placeholder="Last name" value={inv.last_name}
+                        onChange={e => setAddMoreInvitees(addMoreInvitees.map((i, j) => j === idx ? { ...i, last_name: e.target.value } : i))}
+                        className="sacred-input text-sm" />
+                      <input type="email" placeholder="email@example.com" value={inv.email}
+                        onChange={e => {
+                          const u = addMoreInvitees.map((i, j) => j === idx ? { ...i, email: e.target.value } : i)
+                          if (idx === u.length - 1 && e.target.value.trim()) u.push(EMPTY_INVITEE())
+                          setAddMoreInvitees(u)
+                        }}
+                        className="sacred-input text-sm" />
+                      <button type="button"
+                        onClick={() => setAddMoreInvitees(addMoreInvitees.filter((_, i) => i !== idx))}
+                        disabled={addMoreInvitees.length <= 1}
+                        className="text-stone-300 hover:text-red-500 disabled:opacity-0 text-lg">✕</button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button type="button" onClick={() => setEditingScheduleId(null)}
+                    className="sacred-btn px-4 py-2">Cancel</button>
+                  <button type="submit" disabled={addingInvitees}
+                    className="gold-btn px-4 py-2 disabled:opacity-60">
+                    {addingInvitees ? 'Adding…' : 'Add Invitees'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Cancel Invite Modal */}
+        {cancelModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="sacred-card p-6 max-w-md w-full">
+              <h3 className="font-cinzel text-xl font-bold text-sacred-800 mb-2">Cancel Invitation</h3>
+              <p className="text-sm text-stone-600 mb-4">Cancel invitation for <strong>{cancelModal.name}</strong>? They will receive an email notification.</p>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-sacred-700 mb-1">Reason (optional)</label>
+                <textarea
+                  value={cancelReason}
+                  onChange={e => setCancelReason(e.target.value)}
+                  placeholder="e.g. Event postponed, venue change..."
+                  className="sacred-input w-full resize-none" rows={3}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => { setCancelModal(null); setCancelReason('') }}
+                  className="sacred-btn px-4 py-2">Keep Invitation</button>
+                <button
+                  onClick={handleCancelInvite}
+                  disabled={!!cancellingInvitee}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium disabled:opacity-60">
+                  {cancellingInvitee ? 'Cancelling…' : 'Cancel Invitation'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
