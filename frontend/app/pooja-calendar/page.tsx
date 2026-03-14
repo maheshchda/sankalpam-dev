@@ -361,18 +361,20 @@ export default function PoojaCalendarPage() {
                   {rows.map((row, i) => (
                     <tr key={i} className="hover:bg-cream-200/50">
                       <td className="px-4 py-3 text-sm text-stone-800">
-                        {getLinkedPoojaPath(row) ? (
-                          <div className="flex items-center flex-wrap gap-2">
+                        <div className="flex items-center flex-wrap gap-2">
+                          {getLinkedPoojaPath(row) ? (
                             <Link href={getLinkedPoojaPath(row) as string} className="gold-link font-medium underline">
                               {row.pooja_name}
                             </Link>
+                          ) : (
+                            <span className="font-medium">{row.pooja_name}</span>
+                          )}
+                          {getLinkedPoojaPath(row) && (
                             <Link href={getLinkedPoojaPath(row) as string} className="px-2 py-1 text-xs bg-gold-600 text-sacred-900 rounded hover:bg-gold-500 font-semibold">Open Pooja</Link>
-                            <Link href={`/pooja-readiness/${getPoojaSlug(row.pooja_name)}`} className="px-2 py-1 text-xs bg-sacred-700 text-cream-100 rounded hover:bg-sacred-600">Readiness Info</Link>
-                            <Link href={`/pooja-items/${getPoojaSlug(row.pooja_name)}`} className="px-2 py-1 text-xs bg-sacred-600 text-cream-100 rounded hover:bg-sacred-500">Items List</Link>
-                          </div>
-                        ) : (
-                          row.pooja_name
-                        )}
+                          )}
+                          <Link href={`/pooja-readiness/${getPoojaSlug(row.pooja_name)}`} className="px-2 py-1 text-xs bg-sacred-700 text-cream-100 rounded hover:bg-sacred-600">Readiness Info</Link>
+                          <Link href={`/pooja-items/${getPoojaSlug(row.pooja_name)}`} className="px-2 py-1 text-xs bg-sacred-600 text-cream-100 rounded hover:bg-sacred-500">Items List</Link>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-stone-600">{row.freq}</td>
                       {poojaType === 'Yearly' && (

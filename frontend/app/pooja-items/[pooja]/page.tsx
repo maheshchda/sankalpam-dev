@@ -12,6 +12,21 @@ function prettyName(slug: string): string {
     .join(' ')
 }
 
+export async function generateStaticParams() {
+  return [
+    { pooja: 'ganesha-pooja' },
+    { pooja: 'diwali-lakshmi-pooja' },
+    { pooja: 'maha-shivaratri' },
+    { pooja: 'navaratri' },
+    { pooja: 'purnima-pooja-satyanarayan-pooja' },
+    { pooja: 'pradosha-shiva-pooja' },
+    { pooja: 'ekadasi-shiva-pooja' },
+    { pooja: 'ganesh-chaturthi' },
+    { pooja: 'ugadi-gudi-padwa' },
+    { pooja: 'makar-sankranti' },
+  ]
+}
+
 export default function PoojaItemsPage({ params }: Props) {
   const name = prettyName(params.pooja)
 
