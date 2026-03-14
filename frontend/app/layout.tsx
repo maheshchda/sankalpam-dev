@@ -5,6 +5,7 @@ import 'react-toastify/dist/ReactToastify.css'
 import { Providers } from './providers'
 import ToastProvider from '../components/ToastProvider'
 import ExtensionCompatibility from '../components/ExtensionCompatibility'
+import PanchangTickerShell from '../components/PanchangTickerShell'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const cinzel = Cinzel({ subsets: ['latin'], variable: '--font-cinzel', weight: ['400', '600', '700', '900'] })
@@ -27,6 +28,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${cinzel.variable} ${inter.className}`}>
         <Providers>
           <ExtensionCompatibility />
+          <PanchangTickerShell />
           {children}
           <ToastProvider />
         </Providers>

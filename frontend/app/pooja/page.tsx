@@ -3,5 +3,5 @@
 import { PoojaPageContent } from './PoojaPageContent'
 
 export default function Page() {
-  return <PoojaPageContent excludedPooja={null} />
+  return <PoojaPageContent />
 }

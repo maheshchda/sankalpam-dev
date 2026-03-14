@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import api from '@/lib/api'
 import Link from 'next/link'
-import PanchangTicker from '@/components/PanchangTicker'
 
 interface FamilyMember {
   id: number
@@ -66,7 +65,6 @@ export default function DashboardPage() {
 
   return (
     <div className="page-bg">
-      <PanchangTicker />
       <nav className="sacred-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">

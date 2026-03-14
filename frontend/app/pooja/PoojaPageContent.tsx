@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import api from '@/lib/api'
 import { toast } from 'react-toastify'
@@ -124,21 +124,42 @@ function getStateLevelPlaceholderKey(countryCode: string): keyof typeof POOJA_PA
 }
 
 type PoojaPageProps = {
-  excludedPooja?: 'ganesha' | 'lakshmi' | null
+  /** When set, show only poojas matching this type (e.g. /pooja/ganesha shows only Ganesh Pooja) */
+  includedPooja?: 'ganesha' | 'lakshmi' | null
 }
 
-function isExcludedPooja(name: string, excludedPooja: 'ganesha' | 'lakshmi' | null): boolean {
+function isGaneshaPooja(name: string): boolean {
   const value = (name || '').toLowerCase()
-  if (excludedPooja === 'ganesha') {
-    return value.includes('ganesh') || value.includes('ganesha') || value.includes('vinayaka')
-  }
-  if (excludedPooja === 'lakshmi') {
-    return value.includes('lakshmi') || value.includes('laxmi')
-  }
-  return false
+  return value.includes('ganesh') || value.includes('ganesha') || value.includes('vinayaka')
 }
 
-export function PoojaPageContent({ excludedPooja = null }: PoojaPageProps) {
+function isLakshmiPooja(name: string): boolean {
+  const value = (name || '').toLowerCase()
+  return value.includes('lakshmi') || value.includes('laxmi')
+}
+
+function matchesIncludedPooja(name: string, includedPooja: 'ganesha' | 'lakshmi' | null): boolean {
+  if (!includedPooja) return true
+  if (includedPooja === 'ganesha') return isGaneshaPooja(name)
+  if (includedPooja === 'lakshmi') return isLakshmiPooja(name)
+  return true
+}
+
+function getPoojaSlug(name: string): string {
+  return (name || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function slugMatchesPooja(poojaName: string, slug: string): boolean {
+  const poojaSlug = getPoojaSlug(poojaName)
+  return poojaSlug === slug || poojaSlug.includes(slug) || slug.includes(poojaSlug)
+}
+
+export function PoojaPageContent({ includedPooja = null }: PoojaPageProps) {
+  const searchParams = useSearchParams()
+  const poojaSlugFromUrl = searchParams.get('pooja')
   const { user, loading: authLoading, logout } = useAuth()
   const router = useRouter()
 
@@ -199,7 +220,7 @@ export function PoojaPageContent({ excludedPooja = null }: PoojaPageProps) {
   // Initialize location and language from user profile once.
   // Preference order:
   // - Language: preferred_language, fallback English
-  // - Hometown: birth city/state/country, fallback current city/state/country
+  // - Location: current address (where user lives now) first, fallback to birth place
   useEffect(() => {
     if (!userProfileForLocation || profileInitDoneRef.current) return
     profileInitDoneRef.current = true
@@ -210,9 +231,9 @@ export function PoojaPageContent({ excludedPooja = null }: PoojaPageProps) {
     const currentCity = userProfileForLocation.current_city?.trim()
     const currentState = userProfileForLocation.current_state?.trim()
     const currentCountry = userProfileForLocation.current_country?.trim()
-    const city = birthCity || currentCity
-    const state = birthState || currentState
-    const country = birthCountry || currentCountry
+    const city = currentCity || birthCity
+    const state = currentState || birthState
+    const country = currentCountry || birthCountry
     const prefLang = userProfileForLocation.preferred_language
 
     if (country || state || city) {
@@ -293,7 +314,7 @@ export function PoojaPageContent({ excludedPooja = null }: PoojaPageProps) {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user, sankalpamLanguageCode, excludedPooja])
+  }, [authLoading, user, sankalpamLanguageCode, includedPooja, poojaSlugFromUrl])
 
   const fetchPoojas = async (languageCode: string) => {
     try {
@@ -309,8 +330,13 @@ export function PoojaPageContent({ excludedPooja = null }: PoojaPageProps) {
         poojaList = Array.isArray(fallbackResponse.data) ? fallbackResponse.data : []
       }
 
-      if (excludedPooja) {
-        poojaList = poojaList.filter((pooja) => !isExcludedPooja(pooja.name, excludedPooja))
+      // When coming from pooja-calendar with ?pooja=slug, show only that specific pooja
+      if (poojaSlugFromUrl) {
+        poojaList = poojaList.filter((pooja) => slugMatchesPooja(pooja.name, poojaSlugFromUrl))
+      }
+      // When on /pooja/ganesha or /pooja/lakshmi, show only poojas of that type
+      else if (includedPooja) {
+        poojaList = poojaList.filter((pooja) => matchesIncludedPooja(pooja.name, includedPooja))
       }
 
       // Sort so Ganesh Pooja appears first if present

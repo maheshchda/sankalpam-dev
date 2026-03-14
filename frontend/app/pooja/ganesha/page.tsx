@@ -3,5 +3,5 @@
 import { PoojaPageContent } from '../PoojaPageContent'
 
 export default function GaneshaPoojaPage() {
-  return <PoojaPageContent excludedPooja="lakshmi" />
+  return <PoojaPageContent includedPooja="ganesha" />
 }
