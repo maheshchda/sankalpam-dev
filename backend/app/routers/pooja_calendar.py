@@ -464,14 +464,30 @@ def _resolve_yearly_panchang_date(base_date_val, pooja_name: str, country: str |
     return _format_pooja_date_for_country(base, country)
 
 
+# Fallback Indian states when Excel file is missing (e.g. not deployed)
+FALLBACK_STATES = [
+    "Andhra Pradesh", "Assam", "Bihar", "Chhattisgarh", "Delhi", "Goa",
+    "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+    "Kerala", "Madhya Pradesh", "Maharashtra", "Odisha", "Punjab",
+    "Rajasthan", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh",
+    "Uttarakhand", "West Bengal",
+]
+
+
 def _get_state_sheets():
-    import openpyxl
-    if not EXCEL_PATH.exists():
-        return []
-    wb = openpyxl.load_workbook(EXCEL_PATH, read_only=True)
-    names = [s for s in wb.sheetnames if s != SKIP_SHEET]
-    wb.close()
-    return names
+    try:
+        if not EXCEL_PATH.exists():
+            return FALLBACK_STATES
+    except Exception:
+        return FALLBACK_STATES
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(EXCEL_PATH, read_only=True)
+        names = [s for s in wb.sheetnames if s != SKIP_SHEET]
+        wb.close()
+        return names if names else FALLBACK_STATES
+    except Exception:
+        return FALLBACK_STATES
 
 
 def _read_sheet(
@@ -563,8 +579,11 @@ def _read_sheet(
 @router.get("/states")
 async def list_states():
     """Return list of state names (sheet names excluding first)."""
-    states = _get_state_sheets()
-    return {"states": states}
+    try:
+        states = _get_state_sheets()
+        return {"states": states if states else FALLBACK_STATES}
+    except Exception:
+        return {"states": FALLBACK_STATES}
 
 
 @router.get("/data")
