@@ -736,14 +736,17 @@ export default function SchedulePoojaPage() {
                             <p className="text-sm text-stone-600 line-clamp-2 mb-2 mt-1">{s.invite_message}</p>
                           )}
 
-                          {/* RSVP pill counts */}
-                          {s.invitees.length > 0 && (
+                          {/* RSVP pill counts — exclude cancelled invitees */}
+                          {(() => {
+                            const activeInvitees = s.invitees.filter(i => !i.cancelled_at)
+                            if (activeInvitees.length === 0) return null
+                            return (
                             <div className="flex flex-wrap gap-1 items-center mt-1">
-                              <span className="text-xs text-stone-400 mr-1">{s.invitees.length} invitee(s)</span>
+                              <span className="text-xs text-stone-400 mr-1">{activeInvitees.length} invitee(s)</span>
                               {invitesSent && (
                                 <>
                                   {(['attending','maybe','not_attending','pending'] as const).map(st => {
-                                    const count = s.invitees.filter(i => (i.rsvp_status || 'pending') === st).length
+                                    const count = activeInvitees.filter(i => (i.rsvp_status || 'pending') === st).length
                                     if (!count) return null
                                     const colors: Record<string,string> = {
                                       attending: 'bg-green-100 text-green-700 border-green-200',
@@ -761,7 +764,8 @@ export default function SchedulePoojaPage() {
                                 </>
                               )}
                             </div>
-                          )}
+                            )
+                          })()}
                         </div>
                       </div>
 
