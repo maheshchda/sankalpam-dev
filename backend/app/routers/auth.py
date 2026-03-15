@@ -7,7 +7,7 @@ from datetime import datetime
 
 from app.database import get_db
 from app.models import User, VerificationToken, VerificationStatus, _gen_uid
-from app.schemas import UserCreate, UserResponse, Token, LoginRequest, VerificationRequest, ForgotPasswordRequest, ResetPasswordRequest
+from app.schemas import UserCreate, UserResponse, Token, LoginResponse, LoginRequest, VerificationRequest, ForgotPasswordRequest, ResetPasswordRequest
 from app.auth import verify_password, get_password_hash, create_access_token
 from app.dependencies import get_current_user
 from app.config import settings
@@ -105,7 +105,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
             detail=f"Registration failed: {str(e)}"
         )
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=LoginResponse)
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     # Allow login with username or email
     login_input = (form_data.username or "").strip()
@@ -126,12 +126,21 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
             detail="Inactive user"
         )
     
+    # Assign unique_id if not yet set (same logic as /me)
+    if not user.unique_id:
+        uid = _gen_uid("PS")
+        while db.query(User).filter(User.unique_id == uid).first():
+            uid = _gen_uid("PS")
+        user.unique_id = uid
+        db.commit()
+        db.refresh(user)
+    
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "user": user}
 
 @router.post("/verify", status_code=status.HTTP_200_OK)
 async def verify_account(verification: VerificationRequest, db: Session = Depends(get_db)):

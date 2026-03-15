@@ -82,9 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.setItem('access_token', response.data.access_token)
     }
-    // Fetch and update user state
-    const userResponse = await api.get('/api/auth/me')
-    const updatedUser = userResponse.data
+    // User is included in login response — no extra /me round trip
+    const updatedUser = response.data.user
     setUser(updatedUser)
     return updatedUser
   }
