@@ -5,7 +5,13 @@ import { useParams, useRouter } from 'next/navigation'
 import axios from 'axios'
 import Link from 'next/link'
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+function getApiUrl(): string {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    if (host.includes('poojasankalp.org')) return 'https://api.poojasankalp.org'
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,9 +50,11 @@ type UIStep = 'view' | 'rsvp' | 'attending_details' | 'done'
 
 function formatDate(iso: string) {
   try {
-    const d = new Date(iso + 'T00:00:00')
-    return d.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-  } catch { return iso }
+    if (!iso || typeof iso !== 'string') return String(iso ?? '')
+    const dateStr = iso.includes('T') ? iso : iso + 'T00:00:00'
+    const d = new Date(dateStr)
+    return isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  } catch { return String(iso ?? '') }
 }
 
 const STATUS_META: Record<string, { label: string; emoji: string; color: string }> = {
@@ -83,8 +91,14 @@ export default function RsvpPage() {
 
   // ── Load invitation ────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!token) return
-    axios.get(`${API}/api/rsvp/view/${token}`)
+    const t = typeof token === 'string' ? token : Array.isArray(token) ? token[0] : ''
+    if (!t) {
+      setError('Invalid invitation link.')
+      setLoading(false)
+      return
+    }
+    const apiUrl = getApiUrl()
+    axios.get(`${apiUrl}/api/rsvp/view/${t}`)
       .then(r => {
         setInv(r.data)
         if (r.data.rsvp_status !== 'pending') {
@@ -94,7 +108,12 @@ export default function RsvpPage() {
           setSubmitted(true)
         }
       })
-      .catch(() => setError('Invitation not found or the link has expired.'))
+      .catch((err) => {
+        const msg = err.response?.status === 404
+          ? 'Invitation not found or the link has expired.'
+          : err.response?.data?.detail || 'Could not load invitation. Please check your connection.'
+        setError(msg)
+      })
       .finally(() => setLoading(false))
   }, [token])
 
@@ -105,7 +124,7 @@ export default function RsvpPage() {
     setUidError('')
     setUidLoading(true)
     try {
-      const r = await axios.get(`${API}/api/rsvp/members/${uid}`)
+      const r = await axios.get(`${getApiUrl()}/api/rsvp/members/${uid}`)
       setMembers(r.data)
       setSelectedMembers(r.data.map((m: MemberInfo) => m.unique_id))
     } catch {
@@ -126,7 +145,8 @@ export default function RsvpPage() {
     if (!chosenStatus) return
     setSubmitting(true)
     try {
-      await axios.post(`${API}/api/rsvp/view/${token}`, {
+      const t = typeof token === 'string' ? token : Array.isArray(token) ? token[0] : ''
+      await axios.post(`${getApiUrl()}/api/rsvp/view/${t}`, {
         status: chosenStatus,
         notes: notes || null,
         unique_id: uidOption === 'existing' && uniqueId.trim() ? uniqueId.trim().toUpperCase() : null,
@@ -194,7 +214,7 @@ export default function RsvpPage() {
           {/* Image */}
           {inv.image_path && (
             <img
-              src={`${API}${inv.image_path}`}
+              src={`${getApiUrl()}${inv.image_path}`}
               alt="Pooja"
               className="w-full max-h-64 object-cover"
             />
@@ -224,7 +244,7 @@ export default function RsvpPage() {
                       <p>{[inv.venue_city, inv.venue_state, inv.venue_country].filter(Boolean).join(', ')}</p>
                     )}
                     {inv.venue_coordinates && (
-                      <a href={inv.venue_coordinates.startsWith('http') ? inv.venue_coordinates : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(inv.venue_coordinates)}`}
+                      <a href={String(inv.venue_coordinates).startsWith('http') ? inv.venue_coordinates : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(inv.venue_coordinates)}`}
                         target="_blank" rel="noopener noreferrer"
                         className="text-gold-400 hover:text-gold-300 underline underline-offset-2">
                         Open in Maps →
@@ -240,7 +260,7 @@ export default function RsvpPage() {
               <p className="text-cream-200 text-base mb-3">
                 Dear <strong className="text-gold-300">{inviteeName}</strong>,
               </p>
-              {inv.invite_message ? (
+              {inv.invite_message && typeof inv.invite_message === 'string' ? (
                 inv.invite_message.split('\n').filter(l => l.trim()).map((line, i) => (
                   <p key={i} className="text-cream-300 text-sm leading-relaxed mb-2">{line}</p>
                 ))
