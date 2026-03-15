@@ -342,7 +342,7 @@ async def resend_invite(
     )
     ok = False
     if _brevo_configured():
-        ok, msg_id = send_email_via_brevo(inv.email, invitee_name, f"🪔 You're invited to {pooja_name} — {date_str}", html, text)
+        ok, msg_id, _ = send_email_via_brevo(inv.email, invitee_name, f"🪔 You're invited to {pooja_name} — {date_str}", html, text)
         if ok and msg_id:
             inv.last_email_message_id = msg_id
             inv.email_delivery_status = "sent"

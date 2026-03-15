@@ -106,7 +106,7 @@ def send_email(to: str, subject: str, html_body: str, text_body: str = "", tags:
     """Send a single email. Returns True on success. Uses Brevo API if configured, else SMTP."""
     # Try Brevo API first (no message_id return for simple send_email interface)
     if _brevo_configured():
-        ok, _ = send_email_via_brevo(to, "", subject, html_body, text_body, tags)
+        ok, _, _ = send_email_via_brevo(to, "", subject, html_body, text_body, tags)
         if ok:
             return True
         # Fall through to SMTP if Brevo fails
