@@ -9,6 +9,7 @@ module.exports = {
     extend: {
       colors: {
         sacred: {
+          950: '#080202',
           900: '#0f0404',
           800: '#1a0808',
           700: '#2d1010',
