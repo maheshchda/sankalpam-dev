@@ -286,7 +286,7 @@ export default function SchedulePoojaPage() {
       const { sent, skipped, total, error } = r.data
       if (skipped.length > 0) {
         const msg = error ? `${error}` : `Sent ${sent}/${total}. RSVP links generated — share manually if needed.`
-        toast.warn(msg, { duration: error ? 8000 : 4000 })
+        toast.warn(msg, { autoClose: error ? 8000 : 4000 })
       } else {
         toast.success(`Invitations sent to ${sent} invitee(s)!`)
       }
