@@ -341,15 +341,21 @@ async def resend_invite(
         rsvp_url=rsvp_url,
     )
     ok = False
+    last_error: Optional[str] = None
     if _brevo_configured():
-        ok, msg_id, _ = send_email_via_brevo(inv.email, invitee_name, f"🪔 You're invited to {pooja_name} — {date_str}", html, text)
+        ok, msg_id, err = send_email_via_brevo(inv.email, invitee_name, f"🪔 You're invited to {pooja_name} — {date_str}", html, text)
+        if err:
+            last_error = err
         if ok and msg_id:
             inv.last_email_message_id = msg_id
             inv.email_delivery_status = "sent"
     if not ok:
         ok = send_email(to=inv.email, subject=f"🪔 You're invited to {pooja_name} — {date_str}", html_body=html, text_body=text)
     db.commit()
-    return {"message": "Invitation resent." if ok else "Failed to send email.", "sent": ok}
+    resp: dict = {"message": "Invitation resent." if ok else "Failed to send email.", "sent": ok}
+    if not ok and last_error:
+        resp["error"] = last_error
+    return resp
 
 
 # ─── HOST: Cancel invite ──────────────────────────────────────────────────────

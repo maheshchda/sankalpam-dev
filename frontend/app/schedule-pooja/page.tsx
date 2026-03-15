@@ -341,7 +341,12 @@ export default function SchedulePoojaPage() {
     setResendingInvitee({ scheduleId, inviteeId })
     try {
       const r = await api.post(`/api/rsvp/${scheduleId}/invitees/${inviteeId}/resend`)
-      toast.success(r.data.sent ? 'Invitation resent!' : r.data.message || 'Failed to send.')
+      if (r.data.sent) {
+        toast.success('Invitation resent!')
+      } else {
+        const msg = r.data.error || r.data.message || 'Failed to send email.'
+        toast.error(msg, { autoClose: 8000 })
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Failed to resend invite.')
     } finally {
