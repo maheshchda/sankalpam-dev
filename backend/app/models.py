@@ -331,6 +331,10 @@ class PoojaScheduleInvitee(Base):
     cancelled_at = Column(DateTime(timezone=True), nullable=True)
     cancelled_reason = Column(Text, nullable=True)
 
+    # Brevo delivery tracking (sent, delivered, hard_bounce, soft_bounce, etc.)
+    last_email_message_id = Column(String(255), nullable=True)
+    email_delivery_status = Column(String(50), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     schedule = relationship("PoojaSchedule", back_populates="invitees")

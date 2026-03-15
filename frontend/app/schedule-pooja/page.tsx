@@ -64,6 +64,7 @@ interface RsvpSummary {
     notes?: string
     cancelled_reason?: string
     rsvp_token?: string
+    email_delivery_status?: string
   }[]
 }
 
@@ -150,6 +151,7 @@ export default function SchedulePoojaPage() {
   const [addingInvitees, setAddingInvitees] = useState(false)
   const [cancellingInvitee, setCancellingInvitee] = useState<{ scheduleId: number; inviteeId: number } | null>(null)
   const [resendingInvitee, setResendingInvitee] = useState<{ scheduleId: number; inviteeId: number } | null>(null)
+  const [checkingDelivery, setCheckingDelivery] = useState<number | null>(null)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelModal, setCancelModal] = useState<{ scheduleId: number; inviteeId: number; name: string } | null>(null)
 
@@ -281,9 +283,10 @@ export default function SchedulePoojaPage() {
     setSendingInvites(scheduleId)
     try {
       const r = await api.post(`/api/rsvp/${scheduleId}/send`)
-      const { sent, skipped, total } = r.data
+      const { sent, skipped, total, error } = r.data
       if (skipped.length > 0) {
-        toast.warn(`Sent ${sent}/${total}. RSVP links generated — share manually if needed.`)
+        const msg = error ? `${error}` : `Sent ${sent}/${total}. RSVP links generated — share manually if needed.`
+        toast.warn(msg, { duration: error ? 8000 : 4000 })
       } else {
         toast.success(`Invitations sent to ${sent} invitee(s)!`)
       }
@@ -343,6 +346,21 @@ export default function SchedulePoojaPage() {
       toast.error(err.response?.data?.detail || 'Failed to resend invite.')
     } finally {
       setResendingInvitee(null)
+    }
+  }
+
+  // ── Check Brevo delivery status ───────────────────────────────────────────
+  const handleCheckDelivery = async (scheduleId: number) => {
+    setCheckingDelivery(scheduleId)
+    try {
+      const r = await api.post(`/api/rsvp/${scheduleId}/check-delivery`)
+      setRsvpSummary(prev => ({ ...prev, [scheduleId]: r.data.summary }))
+      setExpandedRsvp(scheduleId) // Expand to show updated delivery status
+      toast.success(r.data.updated > 0 ? `Updated delivery status for ${r.data.updated} invitee(s).` : 'No new delivery updates.')
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to check delivery status.')
+    } finally {
+      setCheckingDelivery(null)
     }
   }
 
@@ -782,10 +800,18 @@ export default function SchedulePoojaPage() {
                           ✏️ Add More Invitees
                         </button>
                         {invitesSent && (
-                          <button onClick={() => loadRsvpSummary(s.id)}
-                            className="flex items-center gap-1.5 text-sm border border-sacred-600/40 text-sacred-700 hover:bg-sacred-100 px-4 py-2 rounded-lg transition-colors">
-                            {expandedRsvp === s.id ? '▲ Hide RSVP' : '📋 View RSVP'}
-                          </button>
+                          <>
+                            <button onClick={() => loadRsvpSummary(s.id)}
+                              className="flex items-center gap-1.5 text-sm border border-sacred-600/40 text-sacred-700 hover:bg-sacred-100 px-4 py-2 rounded-lg transition-colors">
+                              {expandedRsvp === s.id ? '▲ Hide RSVP' : '📋 View RSVP'}
+                            </button>
+                            <button onClick={() => handleCheckDelivery(s.id)}
+                              disabled={checkingDelivery === s.id}
+                              className="flex items-center gap-1.5 text-sm border border-gold-500/50 text-sacred-700 hover:bg-gold-50 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                              title="Check Brevo for email delivery status">
+                              {checkingDelivery === s.id ? 'Checking…' : '📬 Check delivery'}
+                            </button>
+                          </>
                         )}
                         <button onClick={() => handleDelete(s.id)}
                           className="ml-auto text-sm text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 px-3 py-2 rounded-lg transition-colors">
@@ -811,13 +837,22 @@ export default function SchedulePoojaPage() {
                             </span>
                           ) : null)}
                         </div>
+                        {summary.invitees.some(i => i.email_delivery_status === 'sent') && (
+                          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+                            💡 If invitees don&apos;t see the email, ask them to check <strong>Spam</strong>. Ensure your sender domain is verified in Brevo (Senders &amp; IP).
+                          </p>
+                        )}
                         <div className="space-y-2">
                           {summary.invitees.map(inv => (
                             <div key={inv.id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 ${
                               inv.status === 'cancelled' ? 'bg-stone-100 border-stone-300 opacity-75' : 'bg-white border-cream-300'
                             }`}>
                               <div className="min-w-0">
-                                <p className={`text-sm font-medium truncate ${inv.status === 'cancelled' ? 'text-stone-500 line-through' : 'text-sacred-700'}`}>{inv.name}</p>
+                                <p className={`text-sm font-medium truncate ${inv.status === 'cancelled' ? 'text-stone-500 line-through' : 'text-sacred-700'} ${inv.email_delivery_status === 'delivered' ? 'font-bold' : ''}`}>
+                                  {inv.name}
+                                  {inv.email_delivery_status === 'delivered' && <span className="ml-1 text-xs text-green-600 font-normal">✓ Delivered</span>}
+                                  {inv.email_delivery_status === 'sent' && <span className="ml-1 text-xs text-amber-600 font-normal" title="Brevo accepted the email. If not received, ask recipient to check spam.">Sent</span>}
+                                </p>
                                 <p className="text-xs text-stone-400 truncate">{inv.email}</p>
                                 {inv.notes && inv.status !== 'cancelled' && <p className="text-xs italic text-stone-500 mt-0.5">&ldquo;{inv.notes}&rdquo;</p>}
                                 {inv.status === 'cancelled' && inv.cancelled_reason && <p className="text-xs italic text-stone-500 mt-0.5">Reason: {inv.cancelled_reason}</p>}

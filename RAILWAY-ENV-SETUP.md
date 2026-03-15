@@ -32,12 +32,13 @@ If using a custom domain, ensure CORS allows it. The backend already allows `poo
 |----------|-------|
 | `ALLOWED_ORIGINS` | `https://www.poojasankalp.org,https://poojasankalp.org` |
 
-### Email (SMTP) — for invitations & verification
+### Email (Brevo) — for invitations & verification
 
-For schedule-pooja invitations and auth emails to work in production, add these to your **backend** service:
+For schedule-pooja invitations and auth emails to work in production, add these to your **backend** service. **Brevo API is preferred** (enables delivery tracking):
 
 | Variable | Value |
 |----------|-------|
+| `BREVO_API_KEY` | Your Brevo API key (Settings → SMTP & API → API Keys) |
 | `SMTP_HOST` | `smtp-relay.brevo.com` |
 | `SMTP_PORT` | `587` |
 | `SMTP_USER` | Your Brevo SMTP login |
@@ -53,3 +54,27 @@ For schedule-pooja invitations and auth emails to work in production, add these 
 3. [ ] Redeploy frontend after adding env var
 4. [ ] Backend CORS allows your domain (poojasankalp.org is already in code)
 5. [ ] SMTP env vars set for invitation emails
+
+### Email not sending? Debug steps
+
+1. **Check the error in the UI** — When you click "Send invitations", if it fails, the toast now shows the Brevo API error (e.g. "Invalid sender", "Domain not verified").
+
+2. **Use the debug endpoints:**
+   - **No login:** Set `EMAIL_TEST_SECRET` in Railway (e.g. a random string), then:
+     ```
+     GET https://api.poojasankalp.org/api/email/test?email=you@example.com&token=YOUR_SECRET
+     ```
+     Sends a real test email via Brevo API. Check your inbox (and spam).
+   - **With login:** `GET /api/email/config` — Shows if `BREVO_API_KEY`, `EMAIL_FROM` are loaded. `POST /api/email/test-send` with body `{"to": "your@email.com"}` — Same test, requires JWT.
+
+3. **Common Brevo issues:**
+   - **Sender domain not verified** — `EMAIL_FROM` must use a domain you verified in Brevo (Senders & IP). Use `noreply@yourdomain.com` or a verified address.
+   - **Wrong API key** — Use the key from Brevo → Settings → SMTP & API → API Keys (not SMTP key).
+   - **Redeploy** — After changing env vars in Railway, redeploy the backend service.
+
+### Invitation shows "sent" but recipient doesn't receive it
+
+1. **Check spam folder** — Ask the recipient to check Spam/Junk. Gmail and Yahoo often filter emails from unverified senders.
+2. **Verify sender domain in Brevo** — Brevo → Senders & IP → add and verify your domain (e.g. `poojasankalp.org`). Add the DKIM/SPF records Brevo provides to your DNS. Without this, emails are more likely to land in spam.
+3. **Use "Check delivery"** — In the schedule page, expand RSVP and click "📬 Check delivery". If it shows "delivered", the email reached the recipient's server (may still be in spam). If "bounced", the address may be invalid.
+4. **Share the RSVP link manually** — Use the "🔗 Link" button to copy the invite link and send it via WhatsApp, SMS, or another channel.

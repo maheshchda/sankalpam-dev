@@ -1,25 +1,117 @@
 """
-Email service for Sankalpam — uses Python's built-in smtplib.
-Configure via environment variables (SMTP_HOST, SMTP_USER, SMTP_PASSWORD, etc.)
+Email service for Sankalpam — Brevo API (with delivery tracking) or SMTP fallback.
+Configure: BREVO_API_KEY for API (recommended), or SMTP_* for SMTP.
 """
 
 import smtplib
 import ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Optional
+from typing import Optional, Tuple
 
 from app.config import settings
+
+# Brevo API
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 
 def _smtp_configured() -> bool:
     return bool(settings.smtp_user and settings.smtp_password)
 
 
-def send_email(to: str, subject: str, html_body: str, text_body: str = "") -> bool:
-    """Send a single email. Returns True on success."""
+def _brevo_configured() -> bool:
+    return bool(getattr(settings, "brevo_api_key", "") or "")
+
+
+def send_email_via_brevo(to: str, to_name: str, subject: str, html_body: str, text_body: str = "", tags: Optional[list] = None) -> Tuple[bool, Optional[str], Optional[str]]:
+    """
+    Send via Brevo Transactional API. Returns (success, message_id, error_message).
+    message_id can be used for delivery tracking via webhooks.
+    """
+    api_key = getattr(settings, "brevo_api_key", "") or ""
+    if not api_key:
+        return False, None, "BREVO_API_KEY not configured"
+    sender_email = settings.email_from or settings.smtp_user or "noreply@sankalpam.com"
+    sender_name = "Pooja Sankalpam"
+    payload = {
+        "sender": {"name": sender_name, "email": sender_email},
+        "to": [{"email": to, "name": to_name or to}],
+        "subject": subject,
+        "htmlContent": html_body,
+        "textContent": text_body or None,
+    }
+    if tags:
+        payload["tags"] = tags
+    try:
+        import httpx
+        r = httpx.post(
+            BREVO_API_URL,
+            json=payload,
+            headers={"api-key": api_key, "accept": "application/json", "content-type": "application/json"},
+            timeout=30.0,
+        )
+        if r.status_code in (200, 201):
+            data = r.json()
+            msg_id = data.get("messageId")
+            print(f"[EMAIL] Brevo API sent to {to}: {subject} (messageId={msg_id})")
+            return True, msg_id, None
+        err = f"Brevo API {r.status_code}: {r.text}"
+        print(f"[EMAIL] {err}")
+        return False, None, err
+    except Exception as exc:
+        err = str(exc)
+        print(f"[EMAIL] Brevo API error to {to}: {err}")
+        return False, None, err
+
+
+def get_brevo_delivery_status(message_id: str) -> Optional[str]:
+    """
+    Fetch delivery status from Brevo for a given message_id.
+    Returns 'delivered', 'bounces', 'requests', etc. or None if not found/error.
+    """
+    api_key = getattr(settings, "brevo_api_key", "") or ""
+    if not api_key or not message_id:
+        return None
+    try:
+        import httpx
+        from datetime import datetime, timedelta
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=30)
+        r = httpx.get(
+            "https://api.brevo.com/v3/smtp/statistics/events",
+            params={"messageId": message_id, "startDate": start_date.strftime("%Y-%m-%d"), "endDate": end_date.strftime("%Y-%m-%d")},
+            headers={"api-key": api_key, "accept": "application/json"},
+            timeout=10.0,
+        )
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        events = data.get("events") or []
+        # Prefer 'delivered' if present, else most recent event
+        for ev in events:
+            if ev.get("event") == "delivered":
+                return "delivered"
+        for ev in events:
+            if ev.get("event") in ("hardBounces", "softBounces", "bounces"):
+                return "bounced"
+        for ev in events:
+            if ev.get("event") == "requests":
+                return "sent"
+        return events[0].get("event") if events else None
+    except Exception:
+        return None
+
+
+def send_email(to: str, subject: str, html_body: str, text_body: str = "", tags: Optional[list] = None) -> bool:
+    """Send a single email. Returns True on success. Uses Brevo API if configured, else SMTP."""
+    # Try Brevo API first (no message_id return for simple send_email interface)
+    if _brevo_configured():
+        ok, _ = send_email_via_brevo(to, "", subject, html_body, text_body, tags)
+        if ok:
+            return True
+        # Fall through to SMTP if Brevo fails
     if not _smtp_configured():
-        print(f"[EMAIL] SMTP not configured — would have sent to {to}: {subject}")
+        print(f"[EMAIL] Neither Brevo nor SMTP configured — would have sent to {to}: {subject}")
         return False
 
     msg = MIMEMultipart("alternative")
@@ -38,7 +130,7 @@ def send_email(to: str, subject: str, html_body: str, text_body: str = "") -> bo
             server.starttls(context=context)
             server.login(settings.smtp_user, settings.smtp_password)
             server.sendmail(settings.smtp_user, to, msg.as_string())
-        print(f"[EMAIL] Sent to {to}: {subject}")
+        print(f"[EMAIL] SMTP sent to {to}: {subject}")
         return True
     except Exception as exc:
         print(f"[EMAIL] Failed to send to {to}: {exc}")

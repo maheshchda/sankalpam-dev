@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     
     # SMS Service (Brevo Transactional SMS - same account as email)
     brevo_api_key: str = ""  # Brevo API key (Settings -> SMTP & API -> API Keys)
+    email_test_secret: str = ""  # Optional: set in Railway to allow GET /api/email/test?email=X&token=Y (no login)
     sms_sender: str = "Sankalpam"  # Sender name (max 11 alphanumeric chars)
     
     # File Storage

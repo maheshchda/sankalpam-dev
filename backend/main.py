@@ -6,7 +6,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
 from app.database import engine, Base, SessionLocal
-from app.routers import auth, users, family, pooja, sankalpam, admin, templates, pooja_calendar, panchang, schedule, rsvp
+from app.routers import auth, users, family, pooja, sankalpam, admin, templates, pooja_calendar, panchang, schedule, rsvp, email_debug
 from app.config import settings
 from app.models import Pooja, AdminRole, UserAdminRole, User
 import json
@@ -209,6 +209,7 @@ app.include_router(templates.router, prefix="/api/templates", tags=["Templates"]
 app.include_router(panchang.router,   prefix="/api/panchang",   tags=["Panchang"])
 app.include_router(schedule.router,   prefix="/api/schedule",   tags=["Schedule"])
 app.include_router(rsvp.router,       prefix="/api/rsvp",       tags=["RSVP"])
+app.include_router(email_debug.router, prefix="/api/email",     tags=["Email Debug"])
 
 # Mount static files for audio and schedule images
 audio_path = Path(settings.audio_storage_path)

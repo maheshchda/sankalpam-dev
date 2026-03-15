@@ -20,7 +20,10 @@ from app.email_service import (
     build_cancellation_text,
     build_invitation_html,
     build_invitation_text,
+    get_brevo_delivery_status,
     send_email,
+    send_email_via_brevo,
+    _brevo_configured,
 )
 from app.models import FamilyMember, PoojaSchedule, PoojaScheduleInvitee, User
 from app.schemas import AttendingMemberInfo, RsvpInvitationView, RsvpSubmit
@@ -82,6 +85,7 @@ async def send_invitations(
 
     sent_count = 0
     skipped = []
+    last_error: Optional[str] = None
     for inv in active_invitees_list:
         # Assign token if missing
         if not inv.rsvp_token:
@@ -121,7 +125,17 @@ async def send_invitations(
         )
 
         subject = f"🪔 You're invited to {pooja_name} — {date_str}"
-        ok = send_email(to=inv.email, subject=subject, html_body=html, text_body=text)
+        ok = False
+        msg_id = None
+        if _brevo_configured():
+            ok, msg_id, err = send_email_via_brevo(inv.email, invitee_name, subject, html, text)
+            if err:
+                last_error = err
+            if ok and msg_id:
+                inv.last_email_message_id = msg_id
+                inv.email_delivery_status = "sent"
+        if not ok:
+            ok = send_email(to=inv.email, subject=subject, html_body=html, text_body=text)
         if ok:
             sent_count += 1
         else:
@@ -129,12 +143,15 @@ async def send_invitations(
 
     db.commit()
 
-    return {
+    resp: dict = {
         "sent": sent_count,
         "skipped": skipped,
         "total": len(active_invitees_list),
         "message": f"Invitations sent to {sent_count} of {len(active_invitees_list)} invitees.",
     }
+    if last_error:
+        resp["error"] = last_error
+    return resp
 
 
 # ─── PUBLIC: View invitation ──────────────────────────────────────────────────
@@ -323,12 +340,14 @@ async def resend_invite(
         invite_message=schedule.invite_message or "",
         rsvp_url=rsvp_url,
     )
-    ok = send_email(
-        to=inv.email,
-        subject=f"🪔 You're invited to {pooja_name} — {date_str}",
-        html_body=html,
-        text_body=text,
-    )
+    ok = False
+    if _brevo_configured():
+        ok, msg_id = send_email_via_brevo(inv.email, invitee_name, f"🪔 You're invited to {pooja_name} — {date_str}", html, text)
+        if ok and msg_id:
+            inv.last_email_message_id = msg_id
+            inv.email_delivery_status = "sent"
+    if not ok:
+        ok = send_email(to=inv.email, subject=f"🪔 You're invited to {pooja_name} — {date_str}", html_body=html, text_body=text)
     db.commit()
     return {"message": "Invitation resent." if ok else "Failed to send email.", "sent": ok}
 
@@ -397,6 +416,75 @@ async def cancel_invite(
     return {"message": "Invitation cancelled. The invitee has been notified."}
 
 
+# ─── HOST: Check Brevo delivery status ───────────────────────────────────────
+
+@router.post("/{schedule_id}/check-delivery", status_code=200)
+async def check_delivery_status(
+    schedule_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Fetch delivery status from Brevo for invitees with last_email_message_id.
+    Updates email_delivery_status (delivered, sent, bounced, etc.) and returns updated summary.
+    """
+    schedule = (
+        db.query(PoojaSchedule)
+        .filter(PoojaSchedule.id == schedule_id, PoojaSchedule.user_id == current_user.id)
+        .first()
+    )
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found.")
+
+    updated = 0
+    for inv in schedule.invitees:
+        if getattr(inv, "cancelled_at", None):
+            continue
+        msg_id = getattr(inv, "last_email_message_id", None)
+        if not msg_id:
+            continue
+        status = get_brevo_delivery_status(msg_id)
+        if status:
+            inv.email_delivery_status = status
+            updated += 1
+
+    db.commit()
+
+    # Return updated summary
+    summary = {"attending": 0, "not_attending": 0, "maybe": 0, "pending": 0, "cancelled": 0, "invitees": []}
+    for inv in schedule.invitees:
+        if getattr(inv, "cancelled_at", None):
+            summary["cancelled"] = summary.get("cancelled", 0) + 1
+            summary["invitees"].append({
+                "id": inv.id,
+                "name": f"{inv.name}{' ' + inv.last_name if inv.last_name else ''}",
+                "email": inv.email,
+                "status": "cancelled",
+                "notes": inv.rsvp_notes,
+                "cancelled_reason": getattr(inv, "cancelled_reason", None),
+                "unique_id": inv.rsvp_unique_id,
+                "attending_members": json.loads(inv.attending_members or "[]"),
+                "rsvp_token": inv.rsvp_token,
+                "email_delivery_status": getattr(inv, "email_delivery_status", None),
+            })
+        else:
+            st = inv.rsvp_status or "pending"
+            summary[st] = summary.get(st, 0) + 1
+            summary["invitees"].append({
+                "id": inv.id,
+                "name": f"{inv.name}{' ' + inv.last_name if inv.last_name else ''}",
+                "email": inv.email,
+                "status": st,
+                "notes": inv.rsvp_notes,
+                "unique_id": inv.rsvp_unique_id,
+                "attending_members": json.loads(inv.attending_members or "[]"),
+                "rsvp_token": inv.rsvp_token,
+                "email_delivery_status": getattr(inv, "email_delivery_status", None),
+            })
+
+    return {"updated": updated, "summary": summary}
+
+
 # ─── HOST: Get RSVP summary for a schedule ───────────────────────────────────
 
 @router.get("/summary/{schedule_id}")
@@ -428,6 +516,7 @@ async def rsvp_summary(
                 "unique_id": inv.rsvp_unique_id,
                 "attending_members": json.loads(inv.attending_members or "[]"),
                 "rsvp_token": inv.rsvp_token,
+                "email_delivery_status": getattr(inv, "email_delivery_status", None),
             })
         else:
             st = inv.rsvp_status or "pending"
@@ -441,6 +530,7 @@ async def rsvp_summary(
                 "unique_id": inv.rsvp_unique_id,
                 "attending_members": json.loads(inv.attending_members or "[]"),
                 "rsvp_token": inv.rsvp_token,
+                "email_delivery_status": getattr(inv, "email_delivery_status", None),
             })
 
     return summary
