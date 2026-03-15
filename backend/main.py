@@ -228,3 +228,11 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
 
+@app.get("/config-check")
+async def config_check():
+    """Public endpoint to verify FRONTEND_URL and other key config (for debugging)."""
+    return {
+        "frontend_url": settings.frontend_url or "(not set)",
+        "email_from": settings.email_from or "(not set)",
+    }
+

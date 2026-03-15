@@ -44,7 +44,7 @@ For schedule-pooja invitations and auth emails to work in production, add these 
 | `SMTP_USER` | Your Brevo SMTP login |
 | `SMTP_PASSWORD` | Your Brevo SMTP key (Settings → SMTP & API → SMTP Keys) |
 | `EMAIL_FROM` | `poojasankalpam@gmail.com` |
-| `FRONTEND_URL` | `https://www.poojasankalp.org` |
+| `FRONTEND_URL` | `https://www.poojasankalp.org` (no trailing slash) |
 | `BACKEND_URL` | `https://api.poojasankalp.org` |
 
 ### Checklist
@@ -78,3 +78,9 @@ For schedule-pooja invitations and auth emails to work in production, add these 
 2. **Verify sender domain in Brevo** — Brevo → Senders & IP → add and verify your domain (e.g. `poojasankalp.org`). Add the DKIM/SPF records Brevo provides to your DNS. Without this, emails are more likely to land in spam.
 3. **Use "Check delivery"** — In the schedule page, expand RSVP and click "📬 Check delivery". If it shows "delivered", the email reached the recipient's server (may still be in spam). If "bounced", the address may be invalid.
 4. **Share the RSVP link manually** — Use the "🔗 Link" button to copy the invite link and send it via WhatsApp, SMS, or another channel.
+
+### RSVP link shows wrong domain (e.g. placeholder.com)
+
+1. **FRONTEND_URL must be in the backend service** — Railway → backend → Variables. Set `FRONTEND_URL` = `https://www.poojasankalp.org` (no trailing slash).
+2. **Verify:** After redeploying, open `https://api.poojasankalp.org/config-check` — it should show `"frontend_url": "https://www.poojasankalp.org"`.
+3. **Resend invitations** — Old emails have the old URL baked in. Changing FRONTEND_URL only affects NEW invitations. Use "📨 Resend" or "Send invitations" again to get emails with the correct link.
