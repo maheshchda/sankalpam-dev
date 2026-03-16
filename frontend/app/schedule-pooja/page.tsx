@@ -895,16 +895,25 @@ export default function SchedulePoojaPage() {
                         <h4 className="font-cinzel font-bold text-sacred-700 text-sm mb-3">RSVP Status</h4>
                         <div className="flex flex-wrap gap-2 mb-4">
                           {[
-                            { key:'attending',     label:'Attending',    emoji:'✅', cls:'bg-green-100 text-green-700 border-green-200' },
-                            { key:'maybe',         label:'Maybe',        emoji:'🤔', cls:'bg-blue-100 text-blue-700 border-blue-200'   },
-                            { key:'not_attending', label:"Can't attend", emoji:'❌', cls:'bg-red-100 text-red-600 border-red-200'      },
-                            { key:'pending',       label:'Pending',      emoji:'⏳', cls:'bg-stone-100 text-stone-600 border-stone-200' },
-                            { key:'cancelled',     label:'Cancelled',    emoji:'🚫', cls:'bg-stone-200 text-stone-600 border-stone-300' },
-                          ].map(({ key, label, emoji, cls }) => ((summary as any)[key] || 0) > 0 ? (
-                            <span key={key} className={`text-xs font-medium px-3 py-1 rounded-full border ${cls}`}>
-                              {emoji} {label}: {(summary as any)[key]}
-                            </span>
-                          ) : null)}
+                            { key:'attending',     label:'Attending',    emoji:'✅', cls:'bg-green-100 text-green-700 border-green-200', showCounts: true },
+                            { key:'maybe',         label:'Maybe',        emoji:'🤔', cls:'bg-blue-100 text-blue-700 border-blue-200',   showCounts: true },
+                            { key:'not_attending', label:"Can't attend", emoji:'❌', cls:'bg-red-100 text-red-600 border-red-200',      showCounts: false },
+                            { key:'pending',       label:'Pending',      emoji:'⏳', cls:'bg-stone-100 text-stone-600 border-stone-200', showCounts: false },
+                            { key:'cancelled',     label:'Cancelled',    emoji:'🚫', cls:'bg-stone-200 text-stone-600 border-stone-300', showCounts: false },
+                          ].map(({ key, label, emoji, cls, showCounts }) => {
+                            const familyCount = (summary as any)[key] || 0
+                            if (familyCount === 0) return null
+                            const totalCount = showCounts
+                              ? (summary.invitees || [])
+                                  .filter((inv: { status: string }) => inv.status === key)
+                                  .reduce((sum: number, inv: { attending_members?: { length: number }[] }) => sum + (inv.attending_members?.length || 0), 0)
+                              : 0
+                            return (
+                              <span key={key} className={`text-xs font-medium px-3 py-1 rounded-full border ${cls}`}>
+                                {emoji} {label}: {showCounts ? `${familyCount} families, ${totalCount} total` : familyCount}
+                              </span>
+                            )
+                          })}
                         </div>
                         {summary.invitees.some(i => i.email_delivery_status === 'sent') && (
                           <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
