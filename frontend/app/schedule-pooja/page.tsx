@@ -156,6 +156,20 @@ export default function SchedulePoojaPage() {
   const [rsvpSummary, setRsvpSummary] = useState<Record<number, RsvpSummary>>({})
   const [expandedRsvp, setExpandedRsvp] = useState<number | null>(null)
   const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null)
+  const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null)
+  const [editForm, setEditForm] = useState<{
+    pooja_name: string
+    scheduled_date: string
+    invite_message: string
+    venue_place: string
+    venue_street_number: string
+    venue_street_name: string
+    venue_city: string
+    venue_state: string
+    venue_country: string
+    venue_coordinates: string
+  } | null>(null)
+  const [savingSchedule, setSavingSchedule] = useState(false)
   const [addMoreInvitees, setAddMoreInvitees] = useState<Invitee[]>([EMPTY_INVITEE()])
   const [addingInvitees, setAddingInvitees] = useState(false)
   const [cancellingInvitee, setCancellingInvitee] = useState<{ scheduleId: number; inviteeId: number } | null>(null)
@@ -320,6 +334,43 @@ export default function SchedulePoojaPage() {
     if (!confirm('Delete this scheduled pooja?')) return
     try { await api.delete(`/api/schedule/${id}`); toast.success('Schedule deleted.'); fetchSchedules() }
     catch { toast.error('Failed to delete.') }
+  }
+
+  // ── Edit schedule (invitation details) ────────────────────────────────────
+  const openEditSchedule = (schedule: Schedule) => {
+    const d = schedule.scheduled_date
+    const dateStr = typeof d === 'string' ? d.slice(0, 10) : `${d}`
+    setEditingSchedule(schedule)
+    setEditForm({
+      pooja_name: schedule.pooja_name || '',
+      scheduled_date: dateStr,
+      invite_message: schedule.invite_message || '',
+      venue_place: schedule.venue_place || '',
+      venue_street_number: schedule.venue_street_number || '',
+      venue_street_name: schedule.venue_street_name || '',
+      venue_city: schedule.venue_city || '',
+      venue_state: schedule.venue_state || '',
+      venue_country: schedule.venue_country || '',
+      venue_coordinates: schedule.venue_coordinates || '',
+    })
+  }
+  const handleSaveSchedule = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingSchedule || !editForm) return
+    if (!editForm.scheduled_date) { toast.error('Please select a date.'); return }
+    if (editForm.scheduled_date < todayLocal()) { toast.error('Pooja date cannot be in the past.'); return }
+    setSavingSchedule(true)
+    try {
+      await api.patch(`/api/schedule/${editingSchedule.id}`, editForm)
+      toast.success('Invitation updated.')
+      setEditingSchedule(null)
+      setEditForm(null)
+      fetchSchedules()
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to update.')
+    } finally {
+      setSavingSchedule(false)
+    }
   }
 
   // ── Add more invitees ─────────────────────────────────────────────────────
@@ -809,9 +860,13 @@ export default function SchedulePoojaPage() {
                           {sendingInvites === s.id ? <span className="animate-pulse">Sending…</span>
                             : <>{invitesSent ? '📨 Resend Invitations' : '📨 Send Invitations'}</>}
                         </button>
+                        <button onClick={() => openEditSchedule(s)}
+                          className="flex items-center gap-1.5 text-sm border border-sacred-600/40 text-sacred-700 hover:bg-sacred-100 px-4 py-2 rounded-lg transition-colors">
+                          ✏️ Edit Invitation
+                        </button>
                         <button onClick={() => openEditInvitees(s)}
                           className="flex items-center gap-1.5 text-sm border border-sacred-600/40 text-sacred-700 hover:bg-sacred-100 px-4 py-2 rounded-lg transition-colors">
-                          ✏️ Add More Invitees
+                          ➕ Add More Invitees
                         </button>
                         {invitesSent && (
                           <>
@@ -923,6 +978,73 @@ export default function SchedulePoojaPage() {
                 )
               })
             )}
+          </div>
+        )}
+
+        {/* Edit Invitation Modal */}
+        {editingSchedule && editForm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="sacred-card p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+              <h3 className="font-cinzel text-xl font-bold text-sacred-800 mb-4">Edit Invitation</h3>
+              <form onSubmit={handleSaveSchedule} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700 mb-1">Pooja Name *</label>
+                  <input type="text" required value={editForm.pooja_name}
+                    onChange={e => setEditForm({ ...editForm, pooja_name: e.target.value })}
+                    className="sacred-input" placeholder="e.g. Ganesh Chaturthi" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700 mb-1">Date *</label>
+                  <input type="date" required value={editForm.scheduled_date}
+                    onChange={e => setEditForm({ ...editForm, scheduled_date: e.target.value })}
+                    className="sacred-input" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sacred-700 mb-1">Invite Message (optional)</label>
+                  <textarea value={editForm.invite_message} rows={3}
+                    onChange={e => setEditForm({ ...editForm, invite_message: e.target.value })}
+                    className="sacred-input w-full resize-none" placeholder="Personal message to invitees…" />
+                </div>
+                <div className="border-t border-cream-300 pt-4">
+                  <h4 className="font-cinzel font-semibold text-sacred-700 mb-2">Venue</h4>
+                  <div className="space-y-2">
+                    <input type="text" placeholder="Place name" value={editForm.venue_place}
+                      onChange={e => setEditForm({ ...editForm, venue_place: e.target.value })}
+                      className="sacred-input text-sm" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input type="text" placeholder="Street number" value={editForm.venue_street_number}
+                        onChange={e => setEditForm({ ...editForm, venue_street_number: e.target.value })}
+                        className="sacred-input text-sm" />
+                      <input type="text" placeholder="Street name" value={editForm.venue_street_name}
+                        onChange={e => setEditForm({ ...editForm, venue_street_name: e.target.value })}
+                        className="sacred-input text-sm" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <input type="text" placeholder="City" value={editForm.venue_city}
+                        onChange={e => setEditForm({ ...editForm, venue_city: e.target.value })}
+                        className="sacred-input text-sm" />
+                      <input type="text" placeholder="State" value={editForm.venue_state}
+                        onChange={e => setEditForm({ ...editForm, venue_state: e.target.value })}
+                        className="sacred-input text-sm" />
+                      <input type="text" placeholder="Country" value={editForm.venue_country}
+                        onChange={e => setEditForm({ ...editForm, venue_country: e.target.value })}
+                        className="sacred-input text-sm" />
+                    </div>
+                    <input type="text" placeholder="Google Maps link or coordinates" value={editForm.venue_coordinates}
+                      onChange={e => setEditForm({ ...editForm, venue_coordinates: e.target.value })}
+                      className="sacred-input text-sm" />
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button type="button" onClick={() => { setEditingSchedule(null); setEditForm(null) }}
+                    className="sacred-btn px-4 py-2">Cancel</button>
+                  <button type="submit" disabled={savingSchedule}
+                    className="gold-btn px-4 py-2 disabled:opacity-60">
+                    {savingSchedule ? 'Saving…' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 

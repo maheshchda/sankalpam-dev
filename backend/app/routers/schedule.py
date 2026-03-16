@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Pooja, PoojaSchedule, PoojaScheduleInvitee, User
-from app.schemas import PoojaScheduleResponse
+from app.schemas import PoojaScheduleResponse, PoojaScheduleUpdate
 
 router = APIRouter()
 
@@ -138,6 +138,44 @@ async def get_schedule(
     )
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found.")
+    return schedule
+
+
+@router.patch("/{schedule_id}", response_model=PoojaScheduleResponse)
+async def update_schedule(
+    schedule_id: int,
+    data: PoojaScheduleUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update schedule details (pooja name, date, venue, message). Invitees are managed separately."""
+    schedule = (
+        db.query(PoojaSchedule)
+        .filter(PoojaSchedule.id == schedule_id, PoojaSchedule.user_id == current_user.id)
+        .first()
+    )
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found.")
+
+    update_data = data.model_dump(exclude_unset=True)
+    if "scheduled_date" in update_data:
+        d = update_data["scheduled_date"]
+        if hasattr(d, "strftime"):  # date object from pydantic
+            sched_dt = datetime.combine(d, datetime.min.time())
+        else:
+            try:
+                sched_dt = datetime.strptime(str(d), "%Y-%m-%d")
+            except ValueError:
+                raise HTTPException(status_code=422, detail="Invalid date format. Use YYYY-MM-DD.")
+        if sched_dt.date() < datetime.now().date():
+            raise HTTPException(status_code=422, detail="Pooja date cannot be in the past.")
+        update_data["scheduled_date"] = sched_dt
+
+    for key, value in update_data.items():
+        setattr(schedule, key, value)
+
+    db.commit()
+    db.refresh(schedule)
     return schedule
 
 

@@ -54,6 +54,8 @@ const RELATION_GEN: Record<string, number> = {
   'Great Grand Maternal Mother-in-law': -3,
   Brother:  0,
   Sister:   0,
+  'Married Brother': 0,
+  'Married Sister': 0,
   'Brother-in-law': 0,
   'Sister-in-law': 0,
   Wife:     0,
@@ -95,8 +97,10 @@ const RELATION_SORT: Record<string, number> = {
   'Great Grand Maternal Mother-in-law': 3,
   Brother: 0,
   Sister:  1,
-  'Brother-in-law': 2,
-  'Sister-in-law': 3,
+  'Married Brother': 2,
+  'Married Sister': 3,
+  'Brother-in-law': 4,
+  'Sister-in-law': 5,
   Wife:    99, // wife renders after the YOU card
   Son:     0,
   Daughter:1,
@@ -210,7 +214,9 @@ function GenRow({
   currentUser: CurrentUser
   isUserGen: boolean
 }) {
-  const siblings = nodes.filter(n => n.relation === 'Brother' || n.relation === 'Sister')
+  const siblings = nodes.filter(n =>
+    ['Brother', 'Sister', 'Married Brother', 'Married Sister'].includes(n.relation)
+  )
   const wife     = nodes.find(n => n.relation === 'Wife')
 
   return (

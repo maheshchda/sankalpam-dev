@@ -26,6 +26,7 @@ from app.email_service import (
     _brevo_configured,
 )
 from app.models import FamilyMember, PoojaSchedule, PoojaScheduleInvitee, User
+from app.routers.family import _resolve_linked_member
 from app.schemas import AttendingMemberInfo, AttendingMemberDetail, RsvpInvitationView, RsvpSubmit
 from app.config import settings
 
@@ -282,14 +283,27 @@ async def get_my_family_for_rsvp(
         gotra=user_gotra,
     ))
 
-    members = db.query(FamilyMember).filter(FamilyMember.user_id == current_user.id).all()
-    for m in members:
-        display = f"{m.name} {m.last_name}".strip() if m.last_name else m.name
+    # Exclude deceased (including linked members whose source is deceased);
+    # exclude married brothers/sisters (they have their own households)
+    EXCLUDED_RELATIONS = {"Married Brother", "Married Sister"}
+    raw_members = (
+        db.query(FamilyMember)
+        .filter(
+            FamilyMember.user_id == current_user.id,
+            ~FamilyMember.relation.in_(EXCLUDED_RELATIONS),
+        )
+        .all()
+    )
+    for m in raw_members:
+        resolved = _resolve_linked_member(m, db)
+        if resolved.is_deceased:
+            continue
+        display = f"{resolved.name} {resolved.last_name}".strip() if resolved.last_name else resolved.name
         result.append(AttendingMemberInfo(
             unique_id=m.unique_id or f"fm-{m.id}",
             display_name=display,
             relation=m.relation,
-            nakshatra=getattr(m, "birth_nakshatra", None) or "",
+            nakshatra=getattr(resolved, "birth_nakshatra", None) or "",
             gotra=user_gotra,
         ))
 

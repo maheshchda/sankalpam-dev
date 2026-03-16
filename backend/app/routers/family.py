@@ -16,6 +16,8 @@ RELATION_TO_INLAW: dict[str, str] = {
     "Mother": "Mother-in-law",
     "Brother": "Brother-in-law",
     "Sister": "Sister-in-law",
+    "Married Brother": "Brother-in-law",
+    "Married Sister": "Sister-in-law",
     "Grand Paternal Father": "Grand Paternal Father-in-law",
     "Grand Paternal Mother": "Grand Paternal Mother-in-law",
     "Grand Maternal Father": "Grand Maternal Father-in-law",
@@ -45,6 +47,7 @@ UNIQUE_RELATIONS = {
 SIBLING_FAMILY_RELATIONS = {
     "Father", "Mother",
     "Brother", "Sister",
+    "Married Brother", "Married Sister",
     "Grand Paternal Father", "Grand Paternal Mother",
     "Grand Maternal Father", "Grand Maternal Mother",
     "Great Grand Paternal Father", "Great Grand Paternal Mother",
@@ -409,7 +412,7 @@ async def get_extended_family_tree(
         if not target_user_id or target_user_id == current_user.id:
             continue
 
-        is_sibling = linked_via in ("Brother", "Sister")
+        is_sibling = linked_via in ("Brother", "Sister", "Married Brother", "Married Sister")
         exclude_uid = m.source_unique_id if m.source_unique_id else None
 
         _fetch_and_add_linked_family(

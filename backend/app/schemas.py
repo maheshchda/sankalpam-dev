@@ -308,6 +308,21 @@ class PoojaScheduleCreate(BaseModel):
     venue_country: Optional[str] = Field(None, max_length=100)
     venue_coordinates: Optional[str] = Field(None, max_length=150)
 
+
+class PoojaScheduleUpdate(BaseModel):
+    """Optional fields for PATCH — only provided fields are updated."""
+    pooja_name: Optional[str] = Field(None, max_length=200)
+    scheduled_date: Optional[date] = None
+    invite_message: Optional[str] = None
+    venue_place: Optional[str] = Field(None, max_length=200)
+    venue_street_number: Optional[str] = Field(None, max_length=50)
+    venue_street_name: Optional[str] = Field(None, max_length=200)
+    venue_city: Optional[str] = Field(None, max_length=100)
+    venue_state: Optional[str] = Field(None, max_length=100)
+    venue_country: Optional[str] = Field(None, max_length=100)
+    venue_coordinates: Optional[str] = Field(None, max_length=150)
+
+
 class PoojaScheduleResponse(BaseModel):
     id: int
     user_id: int
