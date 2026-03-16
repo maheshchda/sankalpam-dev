@@ -283,22 +283,18 @@ async def get_my_family_for_rsvp(
         gotra=user_gotra,
     ))
 
-    # Exclude deceased; exclude Brothers, Sisters (own households);
-    # exclude married Sons and Daughters (own households)
-    EXCLUDED_RELATIONS = {"Brother", "Sister", "Married Brother", "Married Sister"}
+    # Exclude deceased; exclude married Brothers, Sisters, Sons, Daughters (own households)
     raw_members = (
         db.query(FamilyMember)
-        .filter(
-            FamilyMember.user_id == current_user.id,
-            ~FamilyMember.relation.in_(EXCLUDED_RELATIONS),
-        )
+        .filter(FamilyMember.user_id == current_user.id)
         .all()
     )
     for m in raw_members:
         resolved = _resolve_linked_member(m, db)
         if resolved.is_deceased:
             continue
-        if resolved.relation in ("Son", "Daughter") and getattr(resolved, "is_married", False):
+        is_married = getattr(resolved, "is_married", False)
+        if is_married and resolved.relation in ("Brother", "Sister", "Son", "Daughter"):
             continue
         display = f"{resolved.name} {resolved.last_name}".strip() if resolved.last_name else resolved.name
         result.append(AttendingMemberInfo(

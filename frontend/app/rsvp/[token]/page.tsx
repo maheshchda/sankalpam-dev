@@ -135,11 +135,12 @@ export default function RsvpPage() {
       .finally(() => setLoading(false))
   }, [token])
 
-  // ── Load family when user selects "Attending" and is logged in ───────────────
+  // ── Load family when user selects "Attending" or "Maybe" and is logged in ─────
   // When returning to change response, pre-select previously saved attending members
   const existingAttendingIds = inv ? parseAttendingMembers(inv.attending_members) : []
+  const showFamilySelection = chosenStatus === 'attending' || chosenStatus === 'maybe'
   useEffect(() => {
-    if (chosenStatus === 'attending' && user && members.length === 0 && !membersLoading) {
+    if (showFamilySelection && user && members.length === 0 && !membersLoading) {
       setMembersLoading(true)
       api.get('/api/rsvp/my-family')
         .then(r => {
@@ -152,7 +153,7 @@ export default function RsvpPage() {
         })
         .catch(() => setMembers([]))
         .finally(() => setMembersLoading(false))
-    } else if (chosenStatus !== 'attending') {
+    } else if (!showFamilySelection) {
       setMembers([])
       setSelectedMembers([])
     }
@@ -177,7 +178,7 @@ export default function RsvpPage() {
     setSubmitting(true)
     try {
       const t = typeof token === 'string' ? token : Array.isArray(token) ? token[0] : ''
-      const attending_members = chosenStatus === 'attending' && selectedMembers.length > 0
+      const attending_members = showFamilySelection && selectedMembers.length > 0
         ? members
             .filter(m => selectedMembers.includes(m.unique_id))
             .map(m => ({
@@ -368,14 +369,14 @@ export default function RsvpPage() {
               </div>
             )}
 
-            {/* If attending → select family members (Names, Nakshatra, Gothra for recitation) */}
-            {chosenStatus === 'attending' && (
+            {/* If attending or maybe → select family members (Names, Nakshatra, Gothra for recitation) */}
+            {showFamilySelection && (
               <div className="mb-6 rounded-xl border border-gold-500/20 bg-black/20 p-5">
                 <p className="text-gold-300 font-semibold text-sm mb-3 font-cinzel">
                   🪔 Who will be attending?
                 </p>
                 <p className="text-cream-400 text-xs mb-4">
-                  Select family members so the host can plan and recite Names, Nakshatra & Gothra during the pooja. Deceased members, brothers, sisters, and married sons/daughters are excluded (they have their own households).
+                  Select family members so the host can plan and recite Names, Nakshatra & Gothra during the pooja. Deceased members and married brothers, sisters, sons and daughters are excluded (they have their own households).
                 </p>
 
                 {!user ? (
@@ -400,7 +401,9 @@ export default function RsvpPage() {
                   <p className="text-cream-400 text-sm">Loading your family…</p>
                 ) : members.length > 0 ? (
                   <div>
-                    <p className="text-cream-400 text-xs mb-2">Select who will be attending (required):</p>
+                    <p className="text-cream-400 text-xs mb-2">
+                      Select who may be attending {chosenStatus === 'attending' ? '(required)' : '(optional)'}:
+                    </p>
                     <div className="space-y-2">
                       {members.map(m => (
                         <label key={m.unique_id}
@@ -433,8 +436,8 @@ export default function RsvpPage() {
               </div>
             )}
 
-            {/* Submit button — hide when attending but not logged in */}
-            {chosenStatus && !(chosenStatus === 'attending' && !user) && (
+            {/* Submit button — hide when attending/maybe but not logged in */}
+            {chosenStatus && !(showFamilySelection && !user) && (
               <button
                 onClick={handleSubmit}
                 disabled={submitting || (chosenStatus === 'attending' && selectedMembers.length === 0)}
