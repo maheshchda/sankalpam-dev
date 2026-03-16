@@ -25,6 +25,8 @@ const inputCls = 'mt-1 block w-full rounded-md border-cream-300 bg-white shadow-
 
 export default function RegisterPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const returnUrl = searchParams.get('returnUrl')
   const { register, login } = useAuth()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
