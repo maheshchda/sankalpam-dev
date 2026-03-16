@@ -905,8 +905,8 @@ export default function SchedulePoojaPage() {
                             if (familyCount === 0) return null
                             const totalCount = showCounts
                               ? (summary.invitees || [])
-                                  .filter((inv: { status: string }) => inv.status === key)
-                                  .reduce((sum: number, inv: { attending_members?: { length: number }[] }) => sum + (inv.attending_members?.length || 0), 0)
+                                  .filter(inv => inv.status === key)
+                                  .reduce((sum, inv) => sum + (inv.attending_members?.length ?? 0), 0)
                               : 0
                             return (
                               <span key={key} className={`text-xs font-medium px-3 py-1 rounded-full border ${cls}`}>
