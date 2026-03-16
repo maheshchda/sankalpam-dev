@@ -344,6 +344,14 @@ class PoojaScheduleResponse(BaseModel):
     created_at: datetime
     model_config = {"from_attributes": True}
 
+    @field_validator("scheduled_date", mode="before")
+    @classmethod
+    def coerce_scheduled_date(cls, v):
+        """Coerce datetime from DB to date for Pydantic."""
+        if hasattr(v, "date"):
+            return v.date()
+        return v
+
 # ── RSVP public schemas ───────────────────────────────────────────────────────
 
 class RsvpInvitationView(BaseModel):
