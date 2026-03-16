@@ -173,6 +173,7 @@ export default function SchedulePoojaPage() {
   const [addMoreInvitees, setAddMoreInvitees] = useState<Invitee[]>([EMPTY_INVITEE()])
   const [addingInvitees, setAddingInvitees] = useState(false)
   const [cancellingInvitee, setCancellingInvitee] = useState<{ scheduleId: number; inviteeId: number } | null>(null)
+  const [undoingInvitee, setUndoingInvitee] = useState<{ scheduleId: number; inviteeId: number } | null>(null)
   const [resendingInvitee, setResendingInvitee] = useState<{ scheduleId: number; inviteeId: number } | null>(null)
   const [checkingDelivery, setCheckingDelivery] = useState<number | null>(null)
   const [cancelReason, setCancelReason] = useState('')
@@ -270,7 +271,14 @@ export default function SchedulePoojaPage() {
     if (scheduledDate < todayLocal()) { toast.error('Pooja date cannot be in the past.'); return }
     if (!poojaId && !customPooja.trim()) { toast.error('Please select or enter a Pooja name.'); return }
 
-    const validInvitees = invitees.filter(i => i.name.trim() && i.email.trim())
+    const valid = invitees.filter(i => i.name.trim() && i.email.trim())
+    const seen = new Set<string>()
+    const validInvitees = valid.filter(i => {
+      const key = i.email.trim().toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
     setSubmitting(true)
     try {
       const form = new FormData()
@@ -383,12 +391,32 @@ export default function SchedulePoojaPage() {
     if (!editingScheduleId) return
     const valid = addMoreInvitees.filter(i => i.name.trim() && i.email.trim())
     if (valid.length === 0) { toast.error('Add at least one invitee.'); return }
+    const schedule = schedules.find(s => s.id === editingScheduleId)
+    const existingEmails = new Set((schedule?.invitees || []).map(i => i.email?.trim().toLowerCase()).filter(Boolean))
+    const toAdd = valid.filter(i => {
+      const key = i.email.trim().toLowerCase()
+      if (existingEmails.has(key)) return false
+      existingEmails.add(key)
+      return true
+    })
+    const skipped = valid.length - toAdd.length
+    if (toAdd.length === 0) {
+      toast.warning(skipped ? `All ${valid.length} invitee(s) are already on the list.` : 'Add at least one invitee.')
+      return
+    }
     setAddingInvitees(true)
     try {
-      await api.patch(`/api/schedule/${editingScheduleId}/invitees`, new URLSearchParams({ invitees_json: JSON.stringify(valid) }), {
+      const r = await api.patch(`/api/schedule/${editingScheduleId}/invitees`, new URLSearchParams({ invitees_json: JSON.stringify(toAdd) }), {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       })
-      toast.success(`Added ${valid.length} invitee(s). Send invitations to notify them.`)
+      const serverSkipped = (r.data as { skipped_duplicates?: string[] })?.skipped_duplicates
+      if (serverSkipped?.length) {
+        toast.warning(`Added invitees. Skipped duplicates: ${serverSkipped.join(', ')}`)
+      } else if (skipped > 0) {
+        toast.success(`Added ${toAdd.length} invitee(s). ${skipped} already on list.`)
+      } else {
+        toast.success(`Added ${toAdd.length} invitee(s). Send invitations to notify them.`)
+      }
       setEditingScheduleId(null)
       fetchSchedules()
     } catch (err: any) {
@@ -450,6 +478,21 @@ export default function SchedulePoojaPage() {
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Failed to cancel invite.')
     } finally { setCancellingInvitee(null) }
+  }
+
+  const handleUndoCancel = async (scheduleId: number, inviteeId: number) => {
+    setUndoingInvitee({ scheduleId, inviteeId })
+    try {
+      await api.post(`/api/rsvp/${scheduleId}/invitees/${inviteeId}/undo-cancel`)
+      toast.success('Invitation restored. You can resend the invite if needed.')
+      fetchSchedules()
+      if (expandedRsvp === scheduleId) {
+        const r = await api.get(`/api/rsvp/summary/${scheduleId}`)
+        setRsvpSummary(prev => ({ ...prev, [scheduleId]: r.data }))
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to restore invitation.')
+    } finally { setUndoingInvitee(null) }
   }
 
   // ── Guards ────────────────────────────────────────────────────────────────
@@ -966,6 +1009,14 @@ export default function SchedulePoojaPage() {
                                     onClick={() => openCancelModal(s.id, inv.id, inv.name)}
                                     className="text-xs text-red-500 hover:text-red-700 border border-red-200 px-2 py-1 rounded" title="Cancel invite">
                                     Cancel
+                                  </button>
+                                )}
+                                {inv.status === 'cancelled' && (
+                                  <button
+                                    onClick={() => handleUndoCancel(s.id, inv.id)}
+                                    disabled={!!undoingInvitee}
+                                    className="text-xs text-green-600 hover:text-green-700 border border-green-300 px-2 py-1 rounded disabled:opacity-50" title="Restore invitation">
+                                    {undoingInvitee?.scheduleId === s.id && undoingInvitee?.inviteeId === inv.id ? 'Restoring…' : '↩ Undo'}
                                   </button>
                                 )}
                                 <span className={`text-xs px-2 py-1 rounded-full font-medium border ${

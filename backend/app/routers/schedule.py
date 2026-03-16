@@ -127,11 +127,19 @@ async def create_schedule(
             shutil.copyfileobj(image.file, f)
         image_path = f"/uploads/schedule_images/{filename}"
 
-    # Parse invitees
+    # Parse invitees and dedupe by email (case-insensitive)
     try:
         raw_invitees = json.loads(invitees_json)
     except json.JSONDecodeError:
         raw_invitees = []
+    seen_emails: set = set()
+    deduped = []
+    for inv in raw_invitees:
+        email = (inv.get("email") or "").strip().lower()
+        if email and email not in seen_emails:
+            seen_emails.add(email)
+            deduped.append(inv)
+    raw_invitees = deduped
 
     # Create schedule
     schedule = PoojaSchedule(
@@ -259,21 +267,33 @@ async def add_invitees(
     except json.JSONDecodeError:
         raw_invitees = []
 
+    existing_emails = {i.email.strip().lower() for i in schedule.invitees}
+    added = 0
+    skipped_duplicates = []
     for inv in raw_invitees:
         name = (inv.get("name") or "").strip()
         email = (inv.get("email") or "").strip()
         if not name or not email:
             continue
+        email_lower = email.lower()
+        if email_lower in existing_emails:
+            skipped_duplicates.append(email)
+            continue
+        existing_emails.add(email_lower)
         db.add(PoojaScheduleInvitee(
             schedule_id=schedule.id,
             name=name,
             last_name=(inv.get("last_name") or "").strip() or None,
             email=email,
         ))
+        added += 1
 
     db.commit()
     db.refresh(schedule)
-    return _schedule_to_dict(schedule)
+    result = _schedule_to_dict(schedule)
+    if skipped_duplicates:
+        result["skipped_duplicates"] = skipped_duplicates
+    return result
 
 
 @router.delete("/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)

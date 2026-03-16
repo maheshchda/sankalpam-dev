@@ -464,6 +464,35 @@ async def cancel_invite(
     return {"message": "Invitation cancelled. The invitee has been notified."}
 
 
+@router.post("/{schedule_id}/invitees/{invitee_id}/undo-cancel", status_code=200)
+async def undo_cancel_invite(
+    schedule_id: int,
+    invitee_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Undo a cancelled invitation. Restores the invitee so they can receive invites again."""
+    schedule = (
+        db.query(PoojaSchedule)
+        .filter(PoojaSchedule.id == schedule_id, PoojaSchedule.user_id == current_user.id)
+        .first()
+    )
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found.")
+
+    inv = next((i for i in schedule.invitees if i.id == invitee_id), None)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invitee not found.")
+
+    if not getattr(inv, "cancelled_at", None):
+        return {"message": "Invitation was not cancelled."}
+
+    inv.cancelled_at = None
+    inv.cancelled_reason = None
+    db.commit()
+    return {"message": "Invitation restored. You can resend the invite if needed."}
+
+
 # ─── HOST: Check Brevo delivery status ───────────────────────────────────────
 
 @router.post("/{schedule_id}/check-delivery", status_code=200)
