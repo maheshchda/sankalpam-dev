@@ -238,6 +238,11 @@ async def submit_rsvp(
     if getattr(inv, "cancelled_at", None):
         raise HTTPException(status_code=410, detail="This invitation has been cancelled.")
 
+    # Block host from RSVPing to their own event — return message, no update
+    schedule = db.query(PoojaSchedule).filter(PoojaSchedule.id == inv.schedule_id).first()
+    if schedule and schedule.user_id == current_user.id:
+        return {"blocked": True, "message": "You can't RSVP to your own event."}
+
     if data.status == "attending":
         if not data.attending_members or len(data.attending_members) == 0:
             raise HTTPException(

@@ -189,11 +189,15 @@ export default function RsvpPage() {
               relation: m.relation || null,
             }))
         : null
-      await api.post(`/api/rsvp/view/${t}`, {
+      const res = await api.post(`/api/rsvp/view/${t}`, {
         status: chosenStatus,
         notes: notes || null,
         attending_members,
       })
+      if (res.data?.blocked) {
+        alert(res.data.message || "You can't RSVP to your own event.")
+        return
+      }
       setSubmitted(true)
       setStep('done')
     } catch (e: any) {
