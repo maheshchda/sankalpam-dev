@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Pooja, PoojaSchedule, PoojaScheduleInvitee, User
-from app.schemas import PoojaScheduleResponse, PoojaScheduleUpdate
+from app.schemas import PoojaScheduleUpdate
 
 router = APIRouter()
 
@@ -78,7 +78,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 
 
-@router.post("", response_model=PoojaScheduleResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 async def create_schedule(
     pooja_id: Optional[int] = Form(None),
     pooja_name: Optional[str] = Form(None),
@@ -166,7 +166,7 @@ async def create_schedule(
 
     db.commit()
     db.refresh(schedule)
-    return schedule
+    return _schedule_to_dict(schedule)
 
 
 @router.get("")
@@ -200,7 +200,7 @@ async def get_schedule(
     return _schedule_to_dict(schedule)
 
 
-@router.patch("/{schedule_id}", response_model=PoojaScheduleResponse)
+@router.patch("/{schedule_id}")
 async def update_schedule(
     schedule_id: int,
     data: PoojaScheduleUpdate,
@@ -235,10 +235,10 @@ async def update_schedule(
 
     db.commit()
     db.refresh(schedule)
-    return schedule
+    return _schedule_to_dict(schedule)
 
 
-@router.patch("/{schedule_id}/invitees", response_model=PoojaScheduleResponse)
+@router.patch("/{schedule_id}/invitees")
 async def add_invitees(
     schedule_id: int,
     invitees_json: str = Form(default="[]"),
@@ -273,7 +273,7 @@ async def add_invitees(
 
     db.commit()
     db.refresh(schedule)
-    return schedule
+    return _schedule_to_dict(schedule)
 
 
 @router.delete("/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
