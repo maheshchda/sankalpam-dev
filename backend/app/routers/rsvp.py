@@ -26,7 +26,7 @@ from app.email_service import (
     _brevo_configured,
 )
 from app.models import FamilyMember, PoojaSchedule, PoojaScheduleInvitee, User
-from app.schemas import AttendingMemberInfo, RsvpInvitationView, RsvpSubmit
+from app.schemas import AttendingMemberInfo, AttendingMemberDetail, RsvpInvitationView, RsvpSubmit
 from app.config import settings
 
 router = APIRouter()
@@ -43,6 +43,25 @@ def _format_date(d) -> str:
         return d.strftime("%A, %B %-d, %Y")
     except Exception:
         return str(d)
+
+
+def _parse_attending_members(raw: Optional[str]) -> list:
+    """Parse attending_members JSON. Supports old format [uid,...] and new [{unique_id,name,nakshatra,gotra},...]."""
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+        if not isinstance(data, list):
+            return []
+        result = []
+        for item in data:
+            if isinstance(item, dict):
+                result.append(item)
+            else:
+                result.append({"unique_id": str(item), "name": str(item), "nakshatra": None, "gotra": None})
+        return result
+    except Exception:
+        return []
 
 
 # ─── HOST: Send invitations ───────────────────────────────────────────────────
@@ -198,11 +217,16 @@ async def view_invitation(token: str, db: Session = Depends(get_db)):
     )
 
 
-# ─── PUBLIC: Submit RSVP ─────────────────────────────────────────────────────
+# ─── Submit RSVP (requires login) ─────────────────────────────────────────────
 
 @router.post("/view/{token}", status_code=200)
-async def submit_rsvp(token: str, data: RsvpSubmit, db: Session = Depends(get_db)):
-    """Public endpoint — submit an RSVP response."""
+async def submit_rsvp(
+    token: str,
+    data: RsvpSubmit,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Submit RSVP — requires login. When attending, must specify family members (Names, Nakshatra, Gothra for recitation)."""
     inv = (
         db.query(PoojaScheduleInvitee)
         .filter(PoojaScheduleInvitee.rsvp_token == token)
@@ -213,20 +237,21 @@ async def submit_rsvp(token: str, data: RsvpSubmit, db: Session = Depends(get_db
     if getattr(inv, "cancelled_at", None):
         raise HTTPException(status_code=410, detail="This invitation has been cancelled.")
 
+    if data.status == "attending":
+        if not data.attending_members or len(data.attending_members) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Please specify who from your family will be attending (Names, Nakshatra, Gothra for pooja recitation).",
+            )
+
     inv.rsvp_status = data.status
     inv.rsvp_notes = data.notes
     inv.rsvp_updated_at = datetime.now(timezone.utc)
+    inv.rsvp_unique_id = current_user.unique_id
 
-    if data.unique_id:
-        uid = data.unique_id.strip().upper()
-        # Verify the unique_id exists
-        user = db.query(User).filter(User.unique_id == uid).first()
-        if user:
-            inv.rsvp_unique_id = uid
-        else:
-            raise HTTPException(status_code=404, detail=f"No Sankalpam account found with Unique ID {uid}.")
-
-    if data.attending_member_ids is not None:
+    if data.attending_members is not None:
+        inv.attending_members = json.dumps([m.model_dump() for m in data.attending_members])
+    elif data.attending_member_ids is not None:
         inv.attending_members = json.dumps(data.attending_member_ids)
 
     db.commit()
@@ -234,38 +259,38 @@ async def submit_rsvp(token: str, data: RsvpSubmit, db: Session = Depends(get_db
     return {"status": inv.rsvp_status, "message": "RSVP recorded successfully."}
 
 
-# ─── PUBLIC: Lookup family members by Unique ID (for RSVP "who's attending") ─
+# ─── Get logged-in user's family (for RSVP "who's attending") ─────────────────
 
-@router.get("/members/{unique_id}", response_model=List[AttendingMemberInfo])
-async def get_members_for_rsvp(unique_id: str, db: Session = Depends(get_db)):
-    """
-    Public endpoint: given a PS-XXXXXXXX Unique ID, return the user + their
-    family members so the RSVP page can display a checklist.
-    """
-    uid = unique_id.strip().upper()
-    user = db.query(User).filter(User.unique_id == uid).first()
-    if not user:
-        raise HTTPException(status_code=404, detail=f"No account found with Unique ID {uid}.")
-
+@router.get("/my-family", response_model=List[AttendingMemberInfo])
+async def get_my_family_for_rsvp(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the logged-in user + their family with Names, Nakshatra, Gothra for RSVP selection."""
     result: List[AttendingMemberInfo] = []
+    uid = (current_user.unique_id or "").strip().upper()
+    if not uid:
+        uid = f"user-{current_user.id}"
+    user_gotra = current_user.gotram or ""
+    user_nakshatra = getattr(current_user, "birth_nakshatra", None) or ""
 
-    # Account holder themselves
     result.append(AttendingMemberInfo(
         unique_id=uid,
-        display_name=f"{user.first_name} {user.last_name}".strip() or user.username,
+        display_name=f"{current_user.first_name} {current_user.last_name}".strip() or current_user.username,
         relation="Self",
+        nakshatra=user_nakshatra,
+        gotra=user_gotra,
     ))
 
-    # Family members
-    members = db.query(FamilyMember).filter(FamilyMember.user_id == user.id).all()
+    members = db.query(FamilyMember).filter(FamilyMember.user_id == current_user.id).all()
     for m in members:
-        display = m.name
-        if m.last_name:
-            display = f"{m.name} {m.last_name}"
+        display = f"{m.name} {m.last_name}".strip() if m.last_name else m.name
         result.append(AttendingMemberInfo(
             unique_id=m.unique_id or f"fm-{m.id}",
             display_name=display,
             relation=m.relation,
+            nakshatra=getattr(m, "birth_nakshatra", None) or "",
+            gotra=user_gotra,
         ))
 
     return result
@@ -469,7 +494,7 @@ async def check_delivery_status(
                 "notes": inv.rsvp_notes,
                 "cancelled_reason": getattr(inv, "cancelled_reason", None),
                 "unique_id": inv.rsvp_unique_id,
-                "attending_members": json.loads(inv.attending_members or "[]"),
+                "attending_members": _parse_attending_members(inv.attending_members),
                 "rsvp_token": inv.rsvp_token,
                 "email_delivery_status": getattr(inv, "email_delivery_status", None),
             })
@@ -483,7 +508,7 @@ async def check_delivery_status(
                 "status": st,
                 "notes": inv.rsvp_notes,
                 "unique_id": inv.rsvp_unique_id,
-                "attending_members": json.loads(inv.attending_members or "[]"),
+                "attending_members": _parse_attending_members(inv.attending_members),
                 "rsvp_token": inv.rsvp_token,
                 "email_delivery_status": getattr(inv, "email_delivery_status", None),
             })
@@ -520,7 +545,7 @@ async def rsvp_summary(
                 "notes": inv.rsvp_notes,
                 "cancelled_reason": getattr(inv, "cancelled_reason", None),
                 "unique_id": inv.rsvp_unique_id,
-                "attending_members": json.loads(inv.attending_members or "[]"),
+                "attending_members": _parse_attending_members(inv.attending_members),
                 "rsvp_token": inv.rsvp_token,
                 "email_delivery_status": getattr(inv, "email_delivery_status", None),
             })
@@ -534,7 +559,7 @@ async def rsvp_summary(
                 "status": st,
                 "notes": inv.rsvp_notes,
                 "unique_id": inv.rsvp_unique_id,
-                "attending_members": json.loads(inv.attending_members or "[]"),
+                "attending_members": _parse_attending_members(inv.attending_members),
                 "rsvp_token": inv.rsvp_token,
                 "email_delivery_status": getattr(inv, "email_delivery_status", None),
             })

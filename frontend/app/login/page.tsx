@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { toast } from 'react-toastify'
 import Link from 'next/link'
@@ -14,6 +14,8 @@ export default function LoginPage() {
   const [mounted, setMounted] = useState(false)
   const { login } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const returnUrl = searchParams.get('returnUrl')
 
   useEffect(() => {
     setMounted(true)
@@ -26,7 +28,9 @@ export default function LoginPage() {
     try {
       const loggedInUser = await login(username, password)
       toast.success('Login successful!')
-      if (loggedInUser?.is_admin) {
+      if (returnUrl && returnUrl.startsWith('/')) {
+        router.push(returnUrl)
+      } else if (loggedInUser?.is_admin) {
         router.push('/admin')
       } else {
         router.push('/dashboard')
@@ -151,7 +155,7 @@ export default function LoginPage() {
             </button>
 
             <div className="text-center">
-              <Link href="/register" className="gold-link text-sm">
+              <Link href={returnUrl ? `/register?returnUrl=${encodeURIComponent(returnUrl)}` : '/register'} className="gold-link text-sm">
                 Don&apos;t have an account? Register here
               </Link>
             </div>

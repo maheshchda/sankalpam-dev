@@ -354,17 +354,28 @@ class RsvpInvitationView(BaseModel):
     venue_coordinates: Optional[str] = None
     model_config = {"from_attributes": True}
 
+class AttendingMemberDetail(BaseModel):
+    """Attendee details for pooja recitation (Names, Nakshatra, Gothra)."""
+    unique_id: str
+    name: str
+    nakshatra: Optional[str] = None
+    gotra: Optional[str] = None
+    relation: Optional[str] = None
+
 class RsvpSubmit(BaseModel):
     status: str = Field(..., pattern="^(attending|not_attending|maybe)$")
     notes: Optional[str] = Field(None, max_length=500)
-    unique_id: Optional[str] = Field(None, max_length=15)
-    attending_member_ids: Optional[List[str]] = None   # list of unique_ids
+    unique_id: Optional[str] = Field(None, max_length=15)  # deprecated, use logged-in user
+    attending_member_ids: Optional[List[str]] = None   # deprecated
+    attending_members: Optional[List[AttendingMemberDetail]] = None  # full details for recitation
 
 class AttendingMemberInfo(BaseModel):
-    """Family member info returned for a given Unique ID during RSVP."""
+    """Family member info for RSVP — includes nakshatra, gotra for pooja recitation."""
     unique_id: str
     display_name: str
     relation: Optional[str] = None
+    nakshatra: Optional[str] = None
+    gotra: Optional[str] = None
 
 
 class ExtendedFamilyMemberResponse(FamilyMemberResponse):

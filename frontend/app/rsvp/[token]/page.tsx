@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import axios from 'axios'
 import Link from 'next/link'
+import { useAuth } from '@/lib/auth'
+import api from '@/lib/api'
 
 function getApiUrl(): string {
   if (typeof window !== 'undefined') {
@@ -41,6 +43,8 @@ interface MemberInfo {
   unique_id: string
   display_name: string
   relation?: string
+  nakshatra?: string
+  gotra?: string
 }
 
 type RsvpStatus = 'attending' | 'not_attending' | 'maybe'
@@ -69,6 +73,7 @@ const STATUS_META: Record<string, { label: string; emoji: string; color: string 
 export default function RsvpPage() {
   const { token } = useParams<{ token: string }>()
   const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
 
   const [inv, setInv] = useState<Invitation | null>(null)
   const [loading, setLoading] = useState(true)
@@ -81,12 +86,9 @@ export default function RsvpPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
-  // Unique ID flow
-  const [uidOption, setUidOption] = useState<'new' | 'existing' | null>(null)
-  const [uniqueId, setUniqueId] = useState('')
-  const [uidLoading, setUidLoading] = useState(false)
-  const [uidError, setUidError] = useState('')
+  // Family selection (for attending) — uses logged-in user's family
   const [members, setMembers] = useState<MemberInfo[]>([])
+  const [membersLoading, setMembersLoading] = useState(false)
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
 
   // ── Load invitation ────────────────────────────────────────────────────────
@@ -117,45 +119,67 @@ export default function RsvpPage() {
       .finally(() => setLoading(false))
   }, [token])
 
-  // ── Lookup Unique ID ───────────────────────────────────────────────────────
-  const handleLookupUid = async () => {
-    const uid = uniqueId.trim().toUpperCase()
-    if (!uid) { setUidError('Please enter your Unique ID.'); return }
-    setUidError('')
-    setUidLoading(true)
-    try {
-      const r = await axios.get(`${getApiUrl()}/api/rsvp/members/${uid}`)
-      setMembers(r.data)
-      setSelectedMembers(r.data.map((m: MemberInfo) => m.unique_id))
-    } catch {
-      setUidError('No Sankalpam account found with this Unique ID. Please check and try again.')
+  // ── Load family when user selects "Attending" and is logged in ───────────────
+  useEffect(() => {
+    if (chosenStatus === 'attending' && user && members.length === 0 && !membersLoading) {
+      setMembersLoading(true)
+      api.get('/api/rsvp/my-family')
+        .then(r => {
+          setMembers(r.data)
+          setSelectedMembers(r.data.map((m: MemberInfo) => m.unique_id))
+        })
+        .catch(() => setMembers([]))
+        .finally(() => setMembersLoading(false))
+    } else if (chosenStatus !== 'attending') {
       setMembers([])
-    } finally {
-      setUidLoading(false)
+      setSelectedMembers([])
     }
-  }
+  }, [chosenStatus, user])
 
   const toggleMember = (uid: string) =>
     setSelectedMembers(prev =>
       prev.includes(uid) ? prev.filter(x => x !== uid) : [...prev, uid]
     )
 
-  // ── Submit RSVP ────────────────────────────────────────────────────────────
+  // ── Submit RSVP (requires login) ────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!chosenStatus) return
+    if (!user) {
+      alert('Please log in or create an account to accept this invitation.')
+      return
+    }
+    if (chosenStatus === 'attending' && selectedMembers.length === 0) {
+      alert('Please select at least one family member who will be attending.')
+      return
+    }
     setSubmitting(true)
     try {
       const t = typeof token === 'string' ? token : Array.isArray(token) ? token[0] : ''
-      await axios.post(`${getApiUrl()}/api/rsvp/view/${t}`, {
+      const attending_members = chosenStatus === 'attending' && selectedMembers.length > 0
+        ? members
+            .filter(m => selectedMembers.includes(m.unique_id))
+            .map(m => ({
+              unique_id: m.unique_id,
+              name: m.display_name,
+              nakshatra: m.nakshatra || null,
+              gotra: m.gotra || null,
+              relation: m.relation || null,
+            }))
+        : null
+      await api.post(`/api/rsvp/view/${t}`, {
         status: chosenStatus,
         notes: notes || null,
-        unique_id: uidOption === 'existing' && uniqueId.trim() ? uniqueId.trim().toUpperCase() : null,
-        attending_member_ids: uidOption === 'existing' && members.length > 0 ? selectedMembers : null,
+        attending_members,
       })
       setSubmitted(true)
       setStep('done')
     } catch (e: any) {
-      alert(e.response?.data?.detail || 'Failed to submit. Please try again.')
+      const msg = e.response?.data?.detail || 'Failed to submit. Please try again.'
+      if (e.response?.status === 401) {
+        alert('Please log in to accept this invitation.')
+      } else {
+        alert(msg)
+      }
     } finally {
       setSubmitting(false)
     }
@@ -322,113 +346,76 @@ export default function RsvpPage() {
               </div>
             )}
 
-            {/* If attending → show Unique ID options */}
+            {/* If attending → select family members (Names, Nakshatra, Gothra for recitation) */}
             {chosenStatus === 'attending' && (
               <div className="mb-6 rounded-xl border border-gold-500/20 bg-black/20 p-5">
                 <p className="text-gold-300 font-semibold text-sm mb-3 font-cinzel">
-                  🪔 Connect to your Sankalpam profile
+                  🪔 Who will be attending?
                 </p>
                 <p className="text-cream-400 text-xs mb-4">
-                  Optionally link your attendance to your Sankalpam account and indicate which family members will be joining you.
+                  Select family members so the host can plan and recite Names, Nakshatra & Gothra during the pooja.
                 </p>
 
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  {[
-                    { id: 'existing', label: 'I have a Unique ID', icon: '🔗' },
-                    { id: 'new',      label: 'Create a profile',   icon: '✨' },
-                  ].map(opt => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => { setUidOption(opt.id as 'new' | 'existing'); setUidError(''); setMembers([]); setSelectedMembers([]) }}
-                      className={`rounded-lg border p-3 text-center text-sm transition-all
-                        ${uidOption === opt.id
-                          ? 'border-gold-500 bg-gold-500/10 text-gold-300'
-                          : 'border-gold-500/20 text-cream-400 hover:border-gold-500/50'}`}
-                    >
-                      <span className="text-xl block mb-1">{opt.icon}</span>
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Existing Unique ID flow */}
-                {uidOption === 'existing' && (
-                  <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={uniqueId}
-                        onChange={e => { setUniqueId(e.target.value.toUpperCase()); setUidError(''); setMembers([]) }}
-                        placeholder="PS-XXXXXXXX"
-                        className="flex-1 bg-black/30 border border-gold-500/30 rounded-lg px-3 py-2 text-cream-200 text-sm font-mono placeholder-cream-700 focus:outline-none focus:border-gold-400"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleLookupUid}
-                        disabled={uidLoading}
-                        className="px-4 py-2 bg-gold-600 hover:bg-gold-500 text-sacred-950 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+                {!user ? (
+                  <div className="rounded-lg bg-amber-900/30 border border-amber-500/30 p-4 text-center">
+                    <p className="text-amber-200 text-sm mb-3">Please log in or create an account to accept this invitation.</p>
+                    <div className="flex gap-3 justify-center flex-wrap">
+                      <Link
+                        href={`/login?returnUrl=${encodeURIComponent(`/rsvp/${typeof token === 'string' ? token : Array.isArray(token) ? token[0] : ''}`)}`}
+                        className="inline-block bg-gold-500 hover:bg-gold-400 text-sacred-950 font-bold text-sm px-5 py-2 rounded-lg"
                       >
-                        {uidLoading ? '…' : 'Find'}
-                      </button>
+                        Log in
+                      </Link>
+                      <Link
+                        href={`/register?returnUrl=${encodeURIComponent(`/rsvp/${typeof token === 'string' ? token : Array.isArray(token) ? token[0] : ''}`)}`}
+                        className="inline-block bg-sacred-600 hover:bg-sacred-500 text-cream-100 font-bold text-sm px-5 py-2 rounded-lg"
+                      >
+                        Create account
+                      </Link>
                     </div>
-                    {uidError && <p className="text-red-400 text-xs">{uidError}</p>}
-
-                    {members.length > 0 && (
-                      <div>
-                        <p className="text-cream-400 text-xs mb-2">Select who will be attending:</p>
-                        <div className="space-y-2">
-                          {members.map(m => (
-                            <label key={m.unique_id}
-                              className="flex items-center gap-3 cursor-pointer rounded-lg border border-gold-500/10 hover:border-gold-500/30 bg-black/20 px-3 py-2.5 transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={selectedMembers.includes(m.unique_id)}
-                                onChange={() => toggleMember(m.unique_id)}
-                                className="accent-gold-500 w-4 h-4 cursor-pointer"
-                              />
-                              <span className="flex-1 text-cream-200 text-sm">{m.display_name}</span>
-                              {m.relation && (
-                                <span className="text-xs text-gold-500/70 bg-gold-500/10 px-2 py-0.5 rounded-full">{m.relation}</span>
-                              )}
-                            </label>
-                          ))}
-                        </div>
-                        <p className="text-xs text-cream-500 mt-2">
-                          {selectedMembers.length} member(s) selected
-                        </p>
-                      </div>
-                    )}
                   </div>
-                )}
-
-                {/* Create new profile option */}
-                {uidOption === 'new' && (
-                  <div className="rounded-lg bg-black/30 border border-gold-500/20 p-4 text-center">
-                    <p className="text-cream-300 text-sm mb-3">
-                      Create your free Sankalpam profile to connect with family and track Pooja attendance.
-                    </p>
-                    <a
-                      href="/register"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block bg-gold-500 hover:bg-gold-400 text-sacred-950 font-bold text-sm px-6 py-2.5 rounded-lg transition-colors"
-                    >
-                      Create Profile →
-                    </a>
-                    <p className="text-cream-600 text-xs mt-3">
-                      After registering, come back here and use your Unique ID to link your attendance.
+                ) : membersLoading ? (
+                  <p className="text-cream-400 text-sm">Loading your family…</p>
+                ) : members.length > 0 ? (
+                  <div>
+                    <p className="text-cream-400 text-xs mb-2">Select who will be attending (required):</p>
+                    <div className="space-y-2">
+                      {members.map(m => (
+                        <label key={m.unique_id}
+                          className="flex items-center gap-3 cursor-pointer rounded-lg border border-gold-500/10 hover:border-gold-500/30 bg-black/20 px-3 py-2.5 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={selectedMembers.includes(m.unique_id)}
+                            onChange={() => toggleMember(m.unique_id)}
+                            className="accent-gold-500 w-4 h-4 cursor-pointer"
+                          />
+                          <span className="flex-1 text-cream-200 text-sm">{m.display_name}</span>
+                          {m.relation && (
+                            <span className="text-xs text-gold-500/70 bg-gold-500/10 px-2 py-0.5 rounded-full">{m.relation}</span>
+                          )}
+                          {(m.nakshatra || m.gotra) && (
+                            <span className="text-xs text-cream-500">
+                              {[m.nakshatra, m.gotra].filter(Boolean).join(' • ')}
+                            </span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-xs text-cream-500 mt-2">
+                      {selectedMembers.length} member(s) selected — Names, Nakshatra & Gothra will be shared with the host for recitation.
                     </p>
                   </div>
+                ) : (
+                  <p className="text-cream-400 text-sm">Add family members in your profile to select attendees.</p>
                 )}
               </div>
             )}
 
-            {/* Submit button */}
-            {chosenStatus && (
+            {/* Submit button — hide when attending but not logged in */}
+            {chosenStatus && !(chosenStatus === 'attending' && !user) && (
               <button
                 onClick={handleSubmit}
-                disabled={submitting}
+                disabled={submitting || (chosenStatus === 'attending' && selectedMembers.length === 0)}
                 className="w-full py-3 rounded-xl font-cinzel font-bold text-base transition-all disabled:opacity-60
                   bg-gradient-to-r from-gold-600 to-gold-500 hover:from-gold-500 hover:to-gold-400 text-sacred-950"
               >
@@ -447,9 +434,9 @@ export default function RsvpPage() {
                 <div className="text-5xl mb-4">🙏</div>
                 <h3 className="font-cinzel text-2xl text-gold-300 font-bold mb-2">See you there!</h3>
                 <p className="text-cream-300 text-sm mb-1">Your RSVP has been recorded.</p>
-                {uidOption === 'existing' && selectedMembers.length > 0 && (
+                {selectedMembers.length > 0 && (
                   <p className="text-green-400 text-sm mt-2">
-                    ✅ {selectedMembers.length} family member(s) linked to your attendance.
+                    ✅ {selectedMembers.length} family member(s) — Names, Nakshatra & Gothra shared with the host for recitation.
                   </p>
                 )}
               </>

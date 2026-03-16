@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { toast } from 'react-toastify'
 import Link from 'next/link'
@@ -58,14 +58,16 @@ export default function RegisterPage() {
       try {
         const loggedInUser = await login(formData.username, formData.password)
         toast.success('Logged in successfully!')
-        if (loggedInUser?.is_admin) {
+        if (returnUrl && returnUrl.startsWith('/')) {
+          router.push(returnUrl)
+        } else if (loggedInUser?.is_admin) {
           router.push('/admin')
         } else {
           router.push('/dashboard')
         }
       } catch {
         toast.info('Registration successful. Please login.')
-        router.push('/login')
+        router.push(returnUrl ? `/login?returnUrl=${encodeURIComponent(returnUrl)}` : '/login')
       }
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Registration failed')
@@ -190,7 +192,7 @@ export default function RegisterPage() {
             </button>
 
             <div className="text-center">
-              <Link href="/login" className="gold-link text-sm">
+              <Link href={returnUrl ? `/login?returnUrl=${encodeURIComponent(returnUrl)}` : '/login'} className="gold-link text-sm">
                 Already have an account? Sign in
               </Link>
             </div>

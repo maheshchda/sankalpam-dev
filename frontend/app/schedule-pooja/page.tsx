@@ -50,6 +50,14 @@ interface Schedule {
   created_at: string
 }
 
+interface AttendingMember {
+  unique_id?: string
+  name?: string
+  nakshatra?: string
+  gotra?: string
+  relation?: string
+}
+
 interface RsvpSummary {
   attending: number
   not_attending: number
@@ -65,6 +73,7 @@ interface RsvpSummary {
     cancelled_reason?: string
     rsvp_token?: string
     email_delivery_status?: string
+    attending_members?: AttendingMember[]
   }[]
 }
 
@@ -861,6 +870,16 @@ export default function SchedulePoojaPage() {
                                 <p className="text-xs text-stone-400 truncate">{inv.email}</p>
                                 {inv.notes && inv.status !== 'cancelled' && <p className="text-xs italic text-stone-500 mt-0.5">&ldquo;{inv.notes}&rdquo;</p>}
                                 {inv.status === 'cancelled' && inv.cancelled_reason && <p className="text-xs italic text-stone-500 mt-0.5">Reason: {inv.cancelled_reason}</p>}
+                                {inv.status === 'attending' && inv.attending_members && inv.attending_members.length > 0 && (
+                                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs">
+                                    <p className="font-medium text-green-800 mb-1">Attendees (for recitation):</p>
+                                    {inv.attending_members.map((m, i) => (
+                                      <p key={i} className="text-green-700">
+                                        {m.name || m.unique_id}{m.nakshatra ? ` — ${m.nakshatra}` : ''}{m.gotra ? ` (${m.gotra})` : ''}
+                                      </p>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 {inv.status !== 'cancelled' && inv.rsvp_token && (
