@@ -61,6 +61,22 @@ function formatDate(iso: string) {
   } catch { return String(iso ?? '') }
 }
 
+/** Parse attending_members JSON. Supports [{unique_id,name,...}] and [uid,...]. */
+function parseAttendingMembers(raw: string | undefined): string[] {
+  if (!raw || typeof raw !== 'string') return []
+  try {
+    const data = JSON.parse(raw)
+    if (!Array.isArray(data)) return []
+    return data.map((item: unknown) =>
+      typeof item === 'object' && item !== null && 'unique_id' in item
+        ? String((item as { unique_id: string }).unique_id)
+        : String(item)
+    )
+  } catch {
+    return []
+  }
+}
+
 const STATUS_META: Record<string, { label: string; emoji: string; color: string }> = {
   pending:        { label: 'Awaiting your response', emoji: '⏳', color: 'text-amber-600' },
   attending:      { label: 'You are attending',      emoji: '✅', color: 'text-green-600' },
@@ -120,13 +136,19 @@ export default function RsvpPage() {
   }, [token])
 
   // ── Load family when user selects "Attending" and is logged in ───────────────
+  // When returning to change response, pre-select previously saved attending members
+  const existingAttendingIds = inv ? parseAttendingMembers(inv.attending_members) : []
   useEffect(() => {
     if (chosenStatus === 'attending' && user && members.length === 0 && !membersLoading) {
       setMembersLoading(true)
       api.get('/api/rsvp/my-family')
         .then(r => {
-          setMembers(r.data)
-          setSelectedMembers(r.data.map((m: MemberInfo) => m.unique_id))
+          const family = r.data as MemberInfo[]
+          setMembers(family)
+          const ids = existingAttendingIds.length > 0
+            ? existingAttendingIds.filter(id => family.some(m => m.unique_id === id))
+            : []
+          setSelectedMembers(ids.length > 0 ? ids : family.map(m => m.unique_id))
         })
         .catch(() => setMembers([]))
         .finally(() => setMembersLoading(false))
@@ -134,7 +156,7 @@ export default function RsvpPage() {
       setMembers([])
       setSelectedMembers([])
     }
-  }, [chosenStatus, user])
+  }, [chosenStatus, user, existingAttendingIds.join(',')])
 
   const toggleMember = (uid: string) =>
     setSelectedMembers(prev =>
@@ -462,13 +484,16 @@ export default function RsvpPage() {
               </div>
             )}
 
-            {/* Allow changing response */}
-            <button
-              onClick={() => { setStep('view'); setSubmitted(false) }}
-              className="mt-6 text-sm text-gold-400/70 hover:text-gold-400 underline underline-offset-2"
-            >
-              Change my response
-            </button>
+            {/* Allow changing response or updating family members */}
+            <div className="mt-6 pt-4 border-t border-gold-500/20">
+              <p className="text-cream-400 text-sm mb-2">Need to update?</p>
+              <button
+                onClick={() => { setStep('view'); setSubmitted(false) }}
+                className="text-gold-400 hover:text-gold-300 font-medium underline underline-offset-2"
+              >
+                Change my response or update family members →
+              </button>
+            </div>
           </div>
         )}
 
