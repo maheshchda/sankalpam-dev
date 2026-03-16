@@ -3,7 +3,7 @@ import os
 import shutil
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
@@ -14,6 +14,64 @@ from app.models import Pooja, PoojaSchedule, PoojaScheduleInvitee, User
 from app.schemas import PoojaScheduleResponse, PoojaScheduleUpdate
 
 router = APIRouter()
+
+
+def _to_date(v: Any) -> str:
+    """Convert datetime/date to YYYY-MM-DD string."""
+    if v is None:
+        return None
+    if hasattr(v, "date"):
+        return v.date().isoformat()
+    if hasattr(v, "isoformat"):
+        return v.isoformat()[:10]
+    return str(v)[:10]
+
+
+def _to_datetime(v: Any) -> Optional[str]:
+    """Convert datetime to ISO string."""
+    if v is None:
+        return None
+    if hasattr(v, "isoformat"):
+        return v.isoformat()
+    return str(v)
+
+
+def _schedule_to_dict(s: PoojaSchedule) -> dict:
+    """Manually serialize schedule to avoid Pydantic/datetime validation issues."""
+    invitees = []
+    for i in s.invitees:
+        invitees.append({
+            "id": i.id,
+            "name": i.name,
+            "last_name": i.last_name,
+            "email": i.email,
+            "rsvp_token": i.rsvp_token,
+            "rsvp_status": i.rsvp_status or "pending",
+            "rsvp_unique_id": i.rsvp_unique_id,
+            "attending_members": i.attending_members,
+            "rsvp_notes": i.rsvp_notes,
+            "rsvp_updated_at": _to_datetime(i.rsvp_updated_at),
+            "cancelled_at": _to_datetime(i.cancelled_at),
+            "cancelled_reason": i.cancelled_reason,
+        })
+    return {
+        "id": s.id,
+        "user_id": s.user_id,
+        "pooja_id": s.pooja_id,
+        "pooja_name": s.pooja_name,
+        "scheduled_date": _to_date(s.scheduled_date),
+        "invite_message": s.invite_message,
+        "image_path": s.image_path,
+        "venue_place": s.venue_place,
+        "venue_street_number": s.venue_street_number,
+        "venue_street_name": s.venue_street_name,
+        "venue_city": s.venue_city,
+        "venue_state": s.venue_state,
+        "venue_country": s.venue_country,
+        "venue_coordinates": s.venue_coordinates,
+        "invitees": invitees,
+        "created_at": _to_datetime(s.created_at),
+    }
 
 UPLOAD_DIR = "uploads/schedule_images"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -111,21 +169,22 @@ async def create_schedule(
     return schedule
 
 
-@router.get("", response_model=List[PoojaScheduleResponse])
+@router.get("")
 async def list_schedules(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """List all scheduled poojas for the current user."""
-    return (
+    schedules = (
         db.query(PoojaSchedule)
         .filter(PoojaSchedule.user_id == current_user.id)
         .order_by(PoojaSchedule.scheduled_date.desc())
         .all()
     )
+    return [_schedule_to_dict(s) for s in schedules]
 
 
-@router.get("/{schedule_id}", response_model=PoojaScheduleResponse)
+@router.get("/{schedule_id}")
 async def get_schedule(
     schedule_id: int,
     current_user: User = Depends(get_current_user),
@@ -138,7 +197,7 @@ async def get_schedule(
     )
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found.")
-    return schedule
+    return _schedule_to_dict(schedule)
 
 
 @router.patch("/{schedule_id}", response_model=PoojaScheduleResponse)
