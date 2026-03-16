@@ -16,8 +16,6 @@ RELATION_TO_INLAW: dict[str, str] = {
     "Mother": "Mother-in-law",
     "Brother": "Brother-in-law",
     "Sister": "Sister-in-law",
-    "Married Brother": "Brother-in-law",
-    "Married Sister": "Sister-in-law",
     "Grand Paternal Father": "Grand Paternal Father-in-law",
     "Grand Paternal Mother": "Grand Paternal Mother-in-law",
     "Grand Maternal Father": "Grand Maternal Father-in-law",
@@ -220,6 +218,7 @@ async def add_family_member(
         birth_city=link_city,
         birth_state=link_state,
         birth_country=link_country,
+        is_married=False if has_link else getattr(member_data, "is_married", False),
         is_deceased=False if has_link else member_data.is_deceased,
         date_of_death=None if has_link else (member_data.date_of_death if member_data.is_deceased else None),
         time_of_death=None if has_link else (member_data.time_of_death if member_data.is_deceased else None),
@@ -258,7 +257,7 @@ def _resolve_linked_member(m: FamilyMember, db: Session) -> FamilyMember:
                 date_of_birth=u.birth_date, birth_time=u.birth_time,
                 birth_nakshatra=u.birth_nakshatra, birth_rashi=u.birth_rashi, birth_pada=u.birth_pada,
                 birth_city=u.birth_city or "—", birth_state=u.birth_state or "—", birth_country=u.birth_country or "—",
-                is_deceased=False, date_of_death=None, time_of_death=None,
+                is_married=False, is_deceased=False, date_of_death=None, time_of_death=None,
                 death_city=None, death_state=None, death_country=None,
                 death_tithi=None, death_paksha=None, death_nakshatra=None,
                 death_vara=None, death_yoga=None, death_karana=None,
@@ -277,7 +276,7 @@ def _resolve_linked_member(m: FamilyMember, db: Session) -> FamilyMember:
                 date_of_birth=src.date_of_birth, birth_time=src.birth_time,
                 birth_nakshatra=src.birth_nakshatra, birth_rashi=src.birth_rashi, birth_pada=src.birth_pada,
                 birth_city=src.birth_city or "—", birth_state=src.birth_state or "—", birth_country=src.birth_country or "—",
-                is_deceased=src.is_deceased, date_of_death=src.date_of_death, time_of_death=src.time_of_death,
+                is_married=getattr(src, "is_married", False), is_deceased=src.is_deceased, date_of_death=src.date_of_death, time_of_death=src.time_of_death,
                 death_city=src.death_city, death_state=src.death_state, death_country=src.death_country,
                 death_tithi=src.death_tithi, death_paksha=src.death_paksha, death_nakshatra=src.death_nakshatra,
                 death_vara=src.death_vara, death_yoga=src.death_yoga, death_karana=src.death_karana,
@@ -412,7 +411,7 @@ async def get_extended_family_tree(
         if not target_user_id or target_user_id == current_user.id:
             continue
 
-        is_sibling = linked_via in ("Brother", "Sister", "Married Brother", "Married Sister")
+        is_sibling = linked_via in ("Brother", "Sister")
         exclude_uid = m.source_unique_id if m.source_unique_id else None
 
         _fetch_and_add_linked_family(
@@ -511,6 +510,7 @@ async def update_family_member(
         member.birth_city = member_data.birth_city
         member.birth_state = member_data.birth_state
         member.birth_country = member_data.birth_country
+        member.is_married = getattr(member_data, "is_married", False)
         member.is_deceased = member_data.is_deceased
         member.date_of_death = member_data.date_of_death if member_data.is_deceased else None
         member.time_of_death = member_data.time_of_death if member_data.is_deceased else None

@@ -80,8 +80,6 @@ const RELATIONS = [
   'Mother',
   'Brother',
   'Sister',
-  'Married Brother',
-  'Married Sister',
   'Grand Paternal Father',
   'Grand Paternal Mother',
   'Great Grand Paternal Father',
@@ -109,6 +107,7 @@ interface FamilyMember {
   birth_nakshatra?: string
   birth_rashi?: string
   birth_pada?: string
+  is_married?: boolean
   is_deceased: boolean
   date_of_death: string | null
   time_of_death: string | null
@@ -167,6 +166,7 @@ export default function FamilyPage() {
     birth_city: '',
     birth_state: '',
     birth_country: 'India',
+    is_married: false,
     is_deceased: false,
     date_of_death: '',
     time_of_death: '',
@@ -272,6 +272,7 @@ export default function FamilyPage() {
         death_vara:      formData.is_deceased ? (formData.death_vara      || null) : null,
         death_yoga:      formData.is_deceased ? (formData.death_yoga      || null) : null,
         death_karana:    formData.is_deceased ? (formData.death_karana    || null) : null,
+        is_married: formData.is_married,
       }
       
       if (editingId) {
@@ -301,6 +302,7 @@ export default function FamilyPage() {
         birth_city: '',
         birth_state: '',
         birth_country: 'India',
+        is_married: false,
         is_deceased: false,
         date_of_death: '',
         time_of_death: '',
@@ -370,6 +372,7 @@ export default function FamilyPage() {
       birth_city: member.birth_city,
       birth_state: member.birth_state,
       birth_country: member.birth_country,
+      is_married: member.is_married ?? false,
       is_deceased: member.is_deceased || false,
       date_of_death: member.date_of_death ? member.date_of_death.slice(0, 10) : '',
       time_of_death: member.time_of_death || '',
@@ -652,8 +655,18 @@ export default function FamilyPage() {
                 </div>
               </div>
 
-              {/* Deceased section */}
-              <div className="border-t pt-4 mt-2">
+              {/* Married & Deceased */}
+              <div className="border-t pt-4 mt-2 space-y-4">
+                <label className="flex items-center gap-3 cursor-pointer select-none w-fit">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_married}
+                    onChange={(e) => setFormData({ ...formData, is_married: e.target.checked })}
+                    className="h-4 w-4 rounded border-gray-300 accent-amber-600"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Married</span>
+                </label>
+
                 <label className="flex items-center gap-3 cursor-pointer select-none w-fit">
                   <input
                     type="checkbox"
@@ -839,6 +852,9 @@ export default function FamilyPage() {
                       <h3 className="font-cinzel font-bold text-lg text-sacred-700">
                         {member.name}{member.last_name ? ` ${member.last_name}` : ''}
                       </h3>
+                      {member.is_married && (
+                        <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">Married</span>
+                      )}
                       {member.is_deceased && (
                         <span className="text-xs bg-stone-200 text-stone-600 px-2 py-0.5 rounded-full font-medium">Deceased</span>
                       )}

@@ -105,6 +105,7 @@ class FamilyMemberBase(BaseModel):
     birth_city: str = Field(..., min_length=1, max_length=100)
     birth_state: str = Field(..., min_length=1, max_length=100)
     birth_country: str = Field(..., min_length=1, max_length=100)
+    is_married: bool = False
     is_deceased: bool = False
     date_of_death: Optional[date] = None
     time_of_death: Optional[str] = Field(None, pattern=r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$')

@@ -138,6 +138,9 @@ class FamilyMember(Base):
     birth_state = Column(String(100), nullable=False)
     birth_country = Column(String(100), nullable=False)
 
+    # Marital status (for RSVP: married sons/daughters excluded — they have their own households)
+    is_married = Column(Boolean, default=False, nullable=False)
+
     # Deceased info
     is_deceased = Column(Boolean, default=False, nullable=False)
     date_of_death = Column(DateTime, nullable=True)

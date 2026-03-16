@@ -375,7 +375,7 @@ export default function RsvpPage() {
                   🪔 Who will be attending?
                 </p>
                 <p className="text-cream-400 text-xs mb-4">
-                  Select family members so the host can plan and recite Names, Nakshatra & Gothra during the pooja. Deceased members and married brothers/sisters are excluded (they have their own households).
+                  Select family members so the host can plan and recite Names, Nakshatra & Gothra during the pooja. Deceased members, brothers, sisters, and married sons/daughters are excluded (they have their own households).
                 </p>
 
                 {!user ? (
