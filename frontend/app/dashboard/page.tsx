@@ -67,9 +67,9 @@ export default function DashboardPage() {
     <div className="page-bg">
       <nav className="sacred-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <h1 className="font-cinzel text-xl font-bold text-gold-400">Pooja Sankalpam</h1>
-            <div className="flex items-center gap-3">
+          <div className="flex justify-between h-14 sm:h-16 items-center gap-2 flex-wrap">
+            <h1 className="font-cinzel text-lg sm:text-xl font-bold text-gold-400 truncate min-w-0">Pooja Sankalpam</h1>
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 flex-wrap justify-end">
               <span className="text-cream-300/70 text-sm hidden sm:inline">Welcome, <span className="text-gold-400 font-medium">{user.first_name}</span>!</span>
               <Link href="/profile" className="sacred-pill text-cream-200 border-gold-600/40 hover:text-gold-400">Profile</Link>
               <Link href="/pooja-calendar" className="gold-btn text-sm py-1.5">Pooja Calendar</Link>

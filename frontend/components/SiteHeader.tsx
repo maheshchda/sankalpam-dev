@@ -17,20 +17,20 @@ export default function SiteHeader() {
   return (
     <header className="sacred-header">
       <div className="mx-auto max-w-7xl px-4 py-4">
-        <div className="flex items-center justify-between">
-          <Link href={user ? '/dashboard' : '/'} className="flex items-center gap-3 group">
+        <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+          <Link href={user ? '/dashboard' : '/'} className="flex items-center gap-2 sm:gap-3 group min-w-0 shrink">
             <div className="h-11 w-11 rounded-full bg-gold-600 text-sacred-900 font-bold flex items-center justify-center text-sm shrink-0 group-hover:bg-gold-400 transition-colors">
               PS
             </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-cinzel font-bold text-gold-400 leading-tight tracking-wide">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-cinzel font-bold text-gold-400 leading-tight tracking-wide truncate">
                 Pooja Sankalpam
               </h1>
               <p className="text-xs text-cream-300/70 hidden md:block">Your personal assistant for Poojas</p>
             </div>
           </Link>
 
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0 flex-wrap justify-end">
             {user ? (
               <>
                 <span className="hidden sm:inline text-cream-300/70 text-sm">

@@ -15,9 +15,15 @@
   --cream-300: #edddc8;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   background-color: var(--cream-100);
   color: #2d1f10;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
 
 @layer components {
@@ -41,9 +47,9 @@ body {
     @apply bg-white rounded-xl shadow-md ring-1 ring-gold-500/30 border border-cream-300;
   }
 
-  /* Primary gold button */
+  /* Primary gold button — touch-friendly */
   .gold-btn {
-    @apply bg-gold-600 hover:bg-gold-500 text-sacred-900 font-semibold rounded-md px-4 py-2 transition-colors focus:outline-none focus:ring-2 focus:ring-gold-400 focus:ring-offset-2 disabled:opacity-50;
+    @apply bg-gold-600 hover:bg-gold-500 text-sacred-900 font-semibold rounded-md px-4 py-2 min-h-[44px] touch-manipulation transition-colors focus:outline-none focus:ring-2 focus:ring-gold-400 focus:ring-offset-2 disabled:opacity-50 inline-flex items-center justify-center;
   }
 
   /* Secondary sacred/maroon button */
@@ -73,9 +79,9 @@ body {
       placeholder-stone-400 text-stone-800;
   }
 
-  /* Nav pill */
+  /* Nav pill — touch-friendly (44px min tap target) */
   .sacred-pill {
-    @apply rounded-full border border-gold-600/40 bg-cream-100 px-4 py-1.5 text-sm font-medium text-sacred-700 hover:bg-cream-200 hover:border-gold-500 transition-colors;
+    @apply rounded-full border border-gold-600/40 bg-cream-100 px-4 py-2 text-sm font-medium text-sacred-700 hover:bg-cream-200 hover:border-gold-500 transition-colors min-h-[44px] touch-manipulation inline-flex items-center justify-center;
   }
 
   /* Admin sidebar link active */

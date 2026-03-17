@@ -50,8 +50,8 @@ export default function Home() {
       <SiteHeader />
 
       <main className="mx-auto max-w-7xl w-full px-4 py-10 flex-1">
-        <section className="text-center mb-10">
-          <h2 className="font-cinzel text-3xl md:text-5xl font-bold text-sacred-800 leading-tight">
+        <section className="text-center mb-8 sm:mb-10 px-2">
+          <h2 className="font-cinzel text-2xl sm:text-3xl md:text-5xl font-bold text-sacred-800 leading-tight">
             Welcome to Pooja Sankalpam
           </h2>
           <div className="gold-divider mx-auto max-w-xs my-4" />

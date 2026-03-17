@@ -427,13 +427,13 @@ export default function PanchangTicker() {
           </div>
         </div>
 
-        {/* Member selector — fixed right */}
-        <div className="flex-none flex items-center gap-1.5 px-3 border-l border-slate-700 bg-slate-900/60">
-          <span className="text-slate-400 text-xs whitespace-nowrap">👤 For:</span>
+        {/* Member selector — fixed right, responsive */}
+        <div className="flex-none flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 border-l border-slate-700 bg-slate-900/60 min-w-0">
+          <span className="text-slate-400 text-xs whitespace-nowrap hidden sm:inline">👤 For:</span>
           <select
             value={selectedId ?? ''}
             onChange={e => setSelectedId(e.target.value === '' ? null : Number(e.target.value))}
-            className="text-xs bg-slate-800 text-slate-200 border border-slate-600 rounded px-1.5 py-0.5 cursor-pointer focus:outline-none focus:border-amber-500 max-w-[140px]"
+            className="text-xs bg-slate-800 text-slate-200 border border-slate-600 rounded px-1.5 py-1 sm:py-0.5 cursor-pointer focus:outline-none focus:border-amber-500 max-w-[100px] sm:max-w-[140px] min-h-[32px] touch-manipulation"
             title="Select a family member to see their Taara Balam and Chandra Balam"
           >
             <option value="">Myself</option>

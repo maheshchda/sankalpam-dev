@@ -511,9 +511,9 @@ export default function SchedulePoojaPage() {
       {/* Nav */}
       <nav className="sacred-header">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <Link href="/dashboard" className="font-cinzel text-xl font-bold text-gold-400">Pooja Sankalpam</Link>
-            <div className="flex items-center gap-3">
+          <div className="flex justify-between h-14 sm:h-16 items-center gap-2 flex-wrap">
+            <Link href="/dashboard" className="font-cinzel text-lg sm:text-xl font-bold text-gold-400 truncate min-w-0">Pooja Sankalpam</Link>
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               <Link href="/dashboard" className="sacred-pill bg-sacred-800 hover:bg-sacred-700 text-cream-200 border-gold-600/40 hover:text-gold-400">Dashboard</Link>
               <button onClick={() => { logout(); router.push('/login') }}
                 className="rounded-md border border-gold-600/40 px-3 py-1.5 text-sm text-cream-300 hover:bg-sacred-700 transition-colors">
@@ -524,7 +524,7 @@ export default function SchedulePoojaPage() {
         </div>
       </nav>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 w-full min-w-0">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="font-cinzel text-3xl font-bold text-sacred-800 mb-2">Schedule a Pooja</h1>
@@ -533,10 +533,10 @@ export default function SchedulePoojaPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-cream-200 rounded-lg p-1 w-fit mx-auto">
+        <div className="flex gap-1 mb-6 bg-cream-200 rounded-lg p-1 w-full sm:w-fit mx-auto overflow-x-auto">
           {(['form', 'history'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
+              className={`px-4 sm:px-5 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex-shrink-0 min-h-[44px] touch-manipulation ${
                 tab === t ? 'bg-sacred-800 text-gold-300 shadow' : 'text-stone-600 hover:text-sacred-700'
               }`}>
               {t === 'form' ? '+ Schedule New' : `My Schedules (${schedules.length})`}
@@ -896,7 +896,7 @@ export default function SchedulePoojaPage() {
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-cream-300">
+                      <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-cream-300 [&_button]:min-h-[44px] [&_button]:touch-manipulation">
                         <button onClick={() => handleSendInvites(s.id)}
                           disabled={sendingInvites === s.id || s.invitees.filter(i => !i.cancelled_at).length === 0}
                           className="flex items-center gap-1.5 text-sm bg-sacred-800 hover:bg-sacred-700 text-gold-300 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 font-medium">
