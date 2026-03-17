@@ -33,9 +33,6 @@ export default function SiteHeader() {
           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0 flex-wrap justify-end">
             {user ? (
               <>
-                <span className="hidden sm:inline text-cream-300/70 text-sm">
-                  Welcome, <span className="text-gold-400 font-medium">{user.first_name}</span>
-                </span>
                 <Link href="/dashboard" className="sacred-pill text-cream-200 border-gold-600/40 hover:text-gold-400">
                   Dashboard
                 </Link>
