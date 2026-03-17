@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import api from '@/lib/api'
 import Link from 'next/link'
+import HomeButton from '@/components/HomeButton'
 
 interface CalendarRow {
   pooja_name: string
