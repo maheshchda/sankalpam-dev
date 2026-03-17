@@ -40,7 +40,9 @@ export default function PanchangTickerShell() {
     <div className="sticky top-0 z-50">
       {/* Toggle bar — minimal */}
       <div className="flex items-center justify-center gap-3 py-1.5 px-4 bg-sacred-800/95 border-b border-gold-600/30 backdrop-blur-sm">
-        <span className="text-sm font-medium text-cream-200">Your Panchangam Today</span>
+        <span className="text-sm font-medium text-cream-200">
+          Welcome, <span className="text-gold-400 font-semibold">{user.first_name}</span> — Your Panchangam Today
+        </span>
         <button
           type="button"
           onClick={toggle}

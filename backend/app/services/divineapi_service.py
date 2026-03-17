@@ -427,7 +427,10 @@ async def _fetch_panchang_for_today(
     day = now.day
     month = now.month
     year = now.year
-    place = (location_city or "").strip() or (location_state or "").strip() or (location_country or "").strip() or "Unknown"
+    city = (location_city or "").strip()
+    state = (location_state or "").strip()
+    country = (location_country or "").strip()
+    place = ", ".join(p for p in [city, state, country] if p) or "Unknown"
 
     # API requires lat/lon; use 0,0 when missing so request is valid (send as numbers)
     try:

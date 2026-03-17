@@ -331,14 +331,24 @@ async def get_today_panchang(
     """
     Return today's Panchang with auspiciousness scoring.
     Personalises Tarabala + Chandra Balam for the logged-in user or a selected family member.
+    Uses user's current location: lat/lon when provided, else profile (current_city, state, country).
     """
     now = datetime.now()
 
+    # When lat/lon missing, use user's profile location for place-based lookup
+    loc_city = ""
+    loc_state = ""
+    loc_country = ""
+    if lat is None and lon is None:
+        loc_city = (getattr(current_user, "current_city", None) or "").strip()
+        loc_state = (getattr(current_user, "current_state", None) or "").strip()
+        loc_country = (getattr(current_user, "current_country", None) or "").strip()
+
     panchang = await _fetch_panchang_for_today(
         now=now,
-        location_city="",
-        location_state="",
-        location_country="",
+        location_city=loc_city,
+        location_state=loc_state,
+        location_country=loc_country,
         latitude=str(lat) if lat is not None else None,
         longitude=str(lon) if lon is not None else None,
         timezone_offset_hours=timezone_offset,
