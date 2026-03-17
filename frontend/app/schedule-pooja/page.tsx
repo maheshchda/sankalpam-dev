@@ -514,7 +514,7 @@ export default function SchedulePoojaPage() {
           <div className="flex justify-between h-16 items-center">
             <Link href="/dashboard" className="font-cinzel text-xl font-bold text-gold-400">Pooja Sankalpam</Link>
             <div className="flex items-center gap-3">
-              <Link href="/dashboard" className="sacred-pill text-cream-200 border-gold-600/40 hover:text-gold-400">Dashboard</Link>
+              <Link href="/dashboard" className="sacred-pill bg-sacred-800 hover:bg-sacred-700 text-cream-200 border-gold-600/40 hover:text-gold-400">Dashboard</Link>
               <button onClick={() => { logout(); router.push('/login') }}
                 className="rounded-md border border-gold-600/40 px-3 py-1.5 text-sm text-cream-300 hover:bg-sacred-700 transition-colors">
                 Logout
