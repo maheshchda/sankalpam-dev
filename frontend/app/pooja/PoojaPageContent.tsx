@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth'
 import api from '@/lib/api'
 import { toast } from 'react-toastify'
 import Link from 'next/link'
+import HomeButton from '@/components/HomeButton'
 import { motion, AnimatePresence } from 'framer-motion'
 import Select from 'react-select'
 import { Country, State, City } from 'country-state-city'
@@ -745,7 +746,8 @@ export function PoojaPageContent({ includedPooja = null }: PoojaPageProps) {
             <Link href="/dashboard" className="text-2xl font-bold text-amber-600">
               {t('appName', sankalpamLanguageCode)}
             </Link>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <HomeButton variant="light" />
               <Link href="/dashboard" className="px-4 py-2 text-gray-700 hover:text-amber-600">
                 {t('backToDashboard', sankalpamLanguageCode)}
               </Link>

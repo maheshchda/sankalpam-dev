@@ -7,6 +7,7 @@ import api from '@/lib/api'
 import { toast } from 'react-toastify'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import HomeButton from '@/components/HomeButton'
 
 interface SankalpamData {
   sankalpam_text: string
@@ -154,9 +155,12 @@ export default function PlaybackPage() {
     <div className="page-bg">
       <nav className="sacred-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <Link href="/dashboard" className="font-cinzel text-xl font-bold text-gold-400">Pooja Sankalpam</Link>
-            <Link href="/dashboard" className="sacred-pill text-cream-200 border-gold-600/40 hover:text-gold-400">Dashboard</Link>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:h-16 items-stretch sm:items-center gap-3 sm:gap-3 py-3 sm:py-0">
+            <Link href="/dashboard" className="font-cinzel text-xl font-bold text-gold-400 truncate">Pooja Sankalpam</Link>
+            <div className="flex flex-wrap items-center gap-2 justify-end">
+              <HomeButton />
+              <Link href="/dashboard" className="btn-glossy btn-glossy-purple">Dashboard</Link>
+            </div>
           </div>
         </div>
       </nav>

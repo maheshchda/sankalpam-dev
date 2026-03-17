@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth'
 import api from '@/lib/api'
 import { toast } from 'react-toastify'
 import Link from 'next/link'
+import HomeButton from '@/components/HomeButton'
 import { Country, State, City } from 'country-state-city'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -511,12 +512,13 @@ export default function SchedulePoojaPage() {
       {/* Nav */}
       <nav className="sacred-header">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-14 sm:h-16 items-center gap-2 flex-wrap">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:h-14 sm:h-16 items-stretch sm:items-center gap-3 sm:gap-2 py-3 sm:py-0">
             <Link href="/dashboard" className="font-cinzel text-lg sm:text-xl font-bold text-gold-400 truncate min-w-0">Pooja Sankalpam</Link>
-            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-              <Link href="/dashboard" className="sacred-pill bg-sacred-800 hover:bg-sacred-700 text-cream-200 border-gold-600/40 hover:text-gold-400">Dashboard</Link>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0 justify-end">
+              <HomeButton />
+              <Link href="/dashboard" className="btn-glossy btn-glossy-purple">Dashboard</Link>
               <button onClick={() => { logout(); router.push('/login') }}
-                className="rounded-md border border-gold-600/40 px-3 py-1.5 text-sm text-cream-300 hover:bg-sacred-700 transition-colors">
+                className="btn-glossy btn-glossy-red">
                 Logout
               </button>
             </div>

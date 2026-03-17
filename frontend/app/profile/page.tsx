@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth'
 import api from '@/lib/api'
 import { toast } from 'react-toastify'
 import Link from 'next/link'
+import HomeButton from '@/components/HomeButton'
 import Select from 'react-select'
 import { Country, State, City } from 'country-state-city'
 
@@ -270,11 +271,12 @@ export default function ProfilePage() {
     <div className="page-bg">
       <nav className="sacred-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <Link href="/dashboard" className="font-cinzel text-xl font-bold text-gold-400">Pooja Sankalpam</Link>
-            <div className="flex items-center gap-3">
-              <Link href="/dashboard" className="sacred-pill text-cream-200 border-gold-600/40 hover:text-gold-400">Back to Dashboard</Link>
-              <button onClick={() => { logout(); router.push('/login') }} className="rounded-md border border-gold-600/40 px-3 py-1.5 text-sm text-cream-300 hover:bg-sacred-700 transition-colors">Logout</button>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:h-16 items-stretch sm:items-center gap-3 sm:gap-3 py-3 sm:py-0">
+            <Link href="/dashboard" className="font-cinzel text-xl font-bold text-gold-400 truncate">Pooja Sankalpam</Link>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-end">
+              <HomeButton />
+              <Link href="/dashboard" className="btn-glossy btn-glossy-purple">Back to Dashboard</Link>
+              <button onClick={() => { logout(); router.push('/login') }} className="btn-glossy btn-glossy-red">Logout</button>
             </div>
           </div>
         </div>
@@ -282,9 +284,9 @@ export default function ProfilePage() {
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="sacred-card p-6 space-y-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <h2 className="font-cinzel text-2xl font-bold text-sacred-800">Your Profile</h2>
-            <div className="text-sm text-stone-500 text-right space-y-1">
+            <div className="text-sm text-stone-500 sm:text-right space-y-1">
               <div>Username: {user.username}</div>
               <div>Email: {user.email}</div>
               <div className="flex items-center gap-2 justify-end">

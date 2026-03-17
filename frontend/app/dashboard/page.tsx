@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import api from '@/lib/api'
 import Link from 'next/link'
+import HomeButton from '@/components/HomeButton'
 
 interface FamilyMember {
   id: number
@@ -67,13 +68,13 @@ export default function DashboardPage() {
     <div className="page-bg">
       <nav className="sacred-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-14 sm:h-16 items-center gap-2 flex-wrap">
-            <h1 className="font-cinzel text-lg sm:text-xl font-bold text-gold-400 truncate min-w-0">Pooja Sankalpam</h1>
-            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 flex-wrap justify-end">
-              <span className="text-cream-300/70 text-sm hidden sm:inline">Welcome, <span className="text-gold-400 font-medium">{user.first_name}</span>!</span>
-              <Link href="/profile" className="sacred-pill text-cream-200 border-gold-600/40 hover:text-gold-400">Profile</Link>
-              <Link href="/pooja-calendar" className="gold-btn text-sm py-1.5">Pooja Calendar</Link>
-              <button onClick={() => { logout(); router.push('/login') }} className="rounded-md border border-gold-600/40 px-3 py-1.5 text-sm text-cream-300 hover:bg-sacred-700 transition-colors">Logout</button>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:h-14 sm:h-16 items-stretch sm:items-center gap-3 sm:gap-4 py-3 sm:py-0">
+            <h1 className="font-cinzel text-lg sm:text-xl font-bold text-gold-400 truncate min-w-0 shrink">Pooja Sankalpam</h1>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-end flex-shrink-0">
+              <HomeButton />
+              <Link href="/profile" className="btn-glossy btn-glossy-blue shrink-0">Profile</Link>
+              <Link href="/pooja-calendar" className="btn-glossy btn-glossy-orange shrink-0">Pooja Calendar</Link>
+              <button onClick={() => { logout(); router.push('/login') }} className="btn-glossy btn-glossy-red shrink-0">Logout</button>
             </div>
           </div>
         </div>
@@ -84,7 +85,7 @@ export default function DashboardPage() {
           <div className="sacred-card p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="font-cinzel text-xl font-bold text-sacred-700">Family Members</h2>
-              <Link href="/family" className="gold-btn text-sm py-1.5">Manage</Link>
+              <Link href="/family" className="btn-glossy btn-glossy-green text-sm">Manage</Link>
             </div>
             {familyMembers.length === 0 ? (
               <p className="text-stone-500">No family members added yet.</p>
@@ -103,16 +104,16 @@ export default function DashboardPage() {
           <div className="sacred-card p-6">
             <h2 className="font-cinzel text-xl font-bold text-sacred-700 mb-4">Quick Actions</h2>
             <div className="space-y-3">
-              <Link href="/family" className="block px-4 py-2.5 bg-cream-200 rounded-md hover:bg-cream-300 text-sacred-700 font-medium transition-colors">
+              <Link href="/family" className="btn-glossy btn-glossy-green block text-center">
                 Add Family Member
               </Link>
-              <Link href="/schedule-pooja" className="block px-4 py-2.5 bg-gold-500/20 rounded-md hover:bg-gold-500/30 text-sacred-700 font-medium transition-colors border border-gold-500/30">
+              <Link href="/schedule-pooja" className="btn-glossy btn-glossy-orange block text-center">
                 🪔 Schedule a Pooja
               </Link>
-              <Link href="/pooja-calendar" className="block px-4 py-2.5 bg-sacred-700/10 rounded-md hover:bg-sacred-700/20 text-sacred-700 font-medium transition-colors">
+              <Link href="/pooja-calendar" className="btn-glossy btn-glossy-blue block text-center">
                 Pooja Calendar
               </Link>
-              <Link href="/sankalpam" className="block px-4 py-2.5 bg-sacred-700/10 rounded-md hover:bg-sacred-700/20 text-sacred-700 font-medium transition-colors">
+              <Link href="/sankalpam" className="btn-glossy btn-glossy-purple block text-center">
                 Generate Sankalpam
               </Link>
             </div>

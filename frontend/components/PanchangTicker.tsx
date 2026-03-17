@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import api from '@/lib/api'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -158,16 +159,65 @@ function buildFallbackData(): PanchangData {
   }
 }
 
+const LOCATION_MODE_KEY = 'panchang_location_mode'
+function readLocationMode(): 'current' | 'resident' {
+  if (typeof window === 'undefined') return 'resident'
+  try {
+    const stored = localStorage.getItem(LOCATION_MODE_KEY)
+    return stored === 'resident' ? 'resident' : 'current'
+  } catch {
+    return 'resident'
+  }
+}
+
+/** Check if geolocation is allowed. False when explicitly denied; true when granted or prompt. */
+async function checkGeolocationAllowed(): Promise<boolean> {
+  if (typeof navigator === 'undefined' || !('geolocation' in navigator)) return false
+  try {
+    if ('permissions' in navigator && typeof navigator.permissions?.query === 'function') {
+      const result = await navigator.permissions.query({ name: 'geolocation' as PermissionName })
+      return result.state !== 'denied'
+    }
+    return true // Permissions API not available; allow trying (will prompt on use)
+  } catch {
+    return true
+  }
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
-export default function PanchangTicker() {
+interface PanchangTickerProps {
+  visible?: boolean
+  locationToggleSlotRef?: React.RefObject<HTMLDivElement | null>
+  locationSlotReady?: boolean
+}
+
+export default function PanchangTicker({ visible = true, locationToggleSlotRef, locationSlotReady = false }: PanchangTickerProps) {
   const [data, setData]                 = useState<PanchangData | null>(null)
   const [loading, setLoading]           = useState(true)
   const [paused, setPaused]             = useState(false)
   const [tip, setTip]                   = useState<TooltipState | null>(null)
   const [members, setMembers]           = useState<FamilyMember[]>([])
   const [selectedId, setSelectedId]     = useState<number | null>(null)  // null = self
+  const [locationMode, setLocationMode] = useState<'current' | 'resident'>(readLocationMode)
+  const [canUseCurrentLocation, setCanUseCurrentLocation] = useState<boolean | null>(null)
   const fetchedRef                      = useRef(false)
   const geoRef                          = useRef<{ lat?: number; lon?: number }>({})
+
+  // Check geolocation permission on mount — if denied, do not enable Current Location
+  useEffect(() => {
+    let cancelled = false
+    checkGeolocationAllowed().then(allowed => {
+      if (cancelled) return
+      setCanUseCurrentLocation(allowed)
+      if (!allowed) {
+        setLocationMode('resident')
+        try {
+          localStorage.setItem(LOCATION_MODE_KEY, 'resident')
+        } catch { /* ignore */ }
+      }
+    })
+    return () => { cancelled = true }
+  }, [])
 
   // Fetch family members once — only those eligible for personalised Panchang
   useEffect(() => {
@@ -183,14 +233,18 @@ export default function PanchangTicker() {
       .catch(() => {})
   }, [])
 
-  const fetchPanchang = useCallback(async (lat?: number, lon?: number, memberId?: number | null) => {
+  const fetchPanchang = useCallback(async (lat?: number, lon?: number, memberId?: number | null, forceLocationMode?: 'current' | 'resident') => {
     try {
       const tzOffset = -new Date().getTimezoneOffset() / 60
       const params: Record<string, string> = { timezone_offset: String(tzOffset) }
-      const useLat = lat ?? geoRef.current.lat
-      const useLon = lon ?? geoRef.current.lon
-      if (useLat !== undefined) params.lat = String(useLat)
-      if (useLon !== undefined) params.lon = String(useLon)
+      let mode = forceLocationMode ?? locationMode
+      if (mode === 'current' && canUseCurrentLocation === false) mode = 'resident'
+      if (mode === 'current') {
+        const useLat = lat ?? geoRef.current.lat
+        const useLon = lon ?? geoRef.current.lon
+        if (useLat !== undefined) params.lat = String(useLat)
+        if (useLon !== undefined) params.lon = String(useLon)
+      }
       // memberId=null means self; omit param
       const mid = memberId !== undefined ? memberId : selectedId
       if (mid != null) params.member_id = String(mid)
@@ -202,19 +256,27 @@ export default function PanchangTicker() {
     } finally {
       setLoading(false)
     }
-  }, [selectedId])
+  }, [selectedId, locationMode, canUseCurrentLocation])
 
-  // Initial fetch with geolocation
+  // Initial fetch — use geolocation only when Current Location is selected and allowed
   useEffect(() => {
     if (fetchedRef.current) return
     fetchedRef.current = true
-    if ('geolocation' in navigator) {
+    const useCurrent = locationMode === 'current' && canUseCurrentLocation !== false
+    if (useCurrent && 'geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         pos => {
           geoRef.current = { lat: pos.coords.latitude, lon: pos.coords.longitude }
           fetchPanchang(pos.coords.latitude, pos.coords.longitude)
         },
-        () => fetchPanchang(),
+        err => {
+          if (err?.code === 1) {
+            setCanUseCurrentLocation(false)
+            setLocationMode('resident')
+            try { localStorage.setItem(LOCATION_MODE_KEY, 'resident') } catch { /* ignore */ }
+          }
+          fetchPanchang()
+        },
         { timeout: 4000, maximumAge: 600000 }
       )
     } else {
@@ -222,14 +284,41 @@ export default function PanchangTicker() {
     }
     const id = setInterval(() => fetchPanchang(), 30 * 60 * 1000)
     return () => clearInterval(id)
-  }, [fetchPanchang])
+  }, [fetchPanchang, locationMode, canUseCurrentLocation])
 
-  // Re-fetch when selected member changes
+  // Re-fetch when selected member or location mode changes
   useEffect(() => {
     if (!fetchedRef.current) return  // skip before initial fetch
     fetchPanchang(undefined, undefined, selectedId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId])
+  }, [selectedId, locationMode])
+
+  const handleLocationModeChange = (mode: 'current' | 'resident') => {
+    if (mode === 'current' && canUseCurrentLocation === false) return
+    setLocationMode(mode)
+    try {
+      localStorage.setItem(LOCATION_MODE_KEY, mode)
+    } catch { /* ignore */ }
+    if (mode === 'current' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          geoRef.current = { lat: pos.coords.latitude, lon: pos.coords.longitude }
+          fetchPanchang(pos.coords.latitude, pos.coords.longitude, undefined, mode)
+        },
+        err => {
+          if (err?.code === 1) {
+            setCanUseCurrentLocation(false)
+            setLocationMode('resident')
+            try { localStorage.setItem(LOCATION_MODE_KEY, 'resident') } catch { /* ignore */ }
+          }
+          fetchPanchang(undefined, undefined, undefined, 'resident')
+        },
+        { timeout: 4000, maximumAge: 600000 }
+      )
+    } else {
+      fetchPanchang(undefined, undefined, undefined, mode)
+    }
+  }
 
   // Show loading ticker while fetching (keeps bar visible and scrolling)
   if (loading && !data) {
@@ -377,8 +466,48 @@ export default function PanchangTicker() {
     ),
   ]
 
+  const locationToggle = (
+    <div className="flex items-center gap-0.5">
+      <button
+        type="button"
+        onClick={() => handleLocationModeChange('current')}
+        disabled={canUseCurrentLocation === false}
+        className={`text-xs px-1.5 sm:px-2 py-1 rounded transition-colors touch-manipulation ${
+          canUseCurrentLocation === false
+            ? 'text-slate-600 cursor-not-allowed border border-transparent'
+            : locationMode === 'current'
+              ? 'bg-amber-600/40 text-amber-200 border border-amber-500/50 font-medium'
+              : 'text-cream-300/80 hover:text-cream-200 border border-transparent'
+        }`}
+        title={canUseCurrentLocation === false
+          ? 'Location access denied — using registered address'
+          : 'Panchang for your current location (GPS)'}
+      >
+        📍 Current
+      </button>
+      <button
+        type="button"
+        onClick={() => handleLocationModeChange('resident')}
+        className={`text-xs px-1.5 sm:px-2 py-1 rounded transition-colors touch-manipulation ${
+          locationMode === 'resident'
+            ? 'bg-amber-600/40 text-amber-200 border border-amber-500/50 font-medium'
+            : 'text-cream-300/80 hover:text-cream-200 border border-transparent'
+        }`}
+        title="Panchang for your resident location (profile address)"
+      >
+        🏠 Resident
+      </button>
+    </div>
+  )
+
   return (
     <>
+      {/* Location toggle — rendered into shell bar via portal */}
+      {locationSlotReady && locationToggleSlotRef?.current &&
+        createPortal(locationToggle, locationToggleSlotRef.current)}
+
+      {visible && (
+      <>
       <style>{`
         @keyframes ticker-scroll {
           0%   { transform: translateX(0); }
@@ -427,13 +556,20 @@ export default function PanchangTicker() {
           </div>
         </div>
 
+        {/* Location toggle — in ticker bar when not using portal (fallback) */}
+        {!locationToggleSlotRef && (
+          <div className="flex-none flex items-center gap-0.5 px-2 sm:px-3 border-l border-slate-700 bg-slate-900/60">
+            {locationToggle}
+          </div>
+        )}
+
         {/* Member selector — fixed right, responsive */}
         <div className="flex-none flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 border-l border-slate-700 bg-slate-900/60 min-w-0">
           <span className="text-slate-400 text-xs whitespace-nowrap hidden sm:inline">👤 For:</span>
           <select
             value={selectedId ?? ''}
             onChange={e => setSelectedId(e.target.value === '' ? null : Number(e.target.value))}
-            className="text-xs bg-slate-800 text-slate-200 border border-slate-600 rounded px-1.5 py-1 sm:py-0.5 cursor-pointer focus:outline-none focus:border-amber-500 max-w-[100px] sm:max-w-[140px] min-h-[32px] touch-manipulation"
+            className="text-xs bg-slate-800 text-slate-200 border border-slate-600 rounded px-1.5 py-2 sm:py-1 cursor-pointer focus:outline-none focus:border-amber-500 max-w-[100px] sm:max-w-[140px] min-h-[44px] sm:min-h-[36px] touch-manipulation"
             title="Select a family member to see their Taara Balam and Chandra Balam"
           >
             <option value="">Myself</option>
@@ -448,6 +584,8 @@ export default function PanchangTicker() {
 
       {/* Tooltip */}
       {tip && <Tooltip state={tip} />}
+      </>
+      )}
     </>
   )
 }

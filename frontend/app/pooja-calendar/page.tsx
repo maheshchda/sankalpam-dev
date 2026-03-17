@@ -239,15 +239,16 @@ export default function PoojaCalendarPage() {
     <div className="page-bg">
       <nav className="sacred-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <h1 className="font-cinzel text-xl font-bold text-gold-400">{t('sankalpam', lang)}</h1>
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:h-16 items-stretch sm:items-center gap-3 sm:gap-3 py-3 sm:py-0">
+            <h1 className="font-cinzel text-xl font-bold text-gold-400 truncate">{t('sankalpam', lang)}</h1>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-end">
+              <HomeButton />
               {user ? (
                 <>
                   <span className="text-cream-300/70 text-sm hidden sm:inline">{t('welcome', lang)}<span className="text-gold-400 font-medium">{user.first_name}</span>!</span>
-                  <Link href="/dashboard" className="sacred-pill text-cream-200 border-gold-600/40 hover:text-gold-400">{t('dashboard', lang)}</Link>
-                  <Link href="/pooja" className="gold-btn text-sm py-1.5">{t('selectPooja', lang)}</Link>
-                  <button onClick={() => { logout(); router.push('/login') }} className="rounded-md border border-gold-600/40 px-3 py-1.5 text-sm text-cream-300 hover:bg-sacred-700 transition-colors">{t('logout', lang)}</button>
+                  <Link href="/dashboard" className="btn-glossy btn-glossy-purple">{t('dashboard', lang)}</Link>
+                  <Link href="/pooja" className="gold-btn">{t('selectPooja', lang)}</Link>
+                  <button onClick={() => { logout(); router.push('/login') }} className="btn-glossy btn-glossy-red">{t('logout', lang)}</button>
                 </>
               ) : (
                 <Link href="/login" className="gold-btn text-sm py-1.5">Login</Link>
