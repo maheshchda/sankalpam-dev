@@ -10,7 +10,7 @@ GET /api/panchang/today
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
 from app.routers.auth import get_current_user
@@ -332,8 +332,10 @@ async def get_today_panchang(
     Return today's Panchang with auspiciousness scoring.
     Personalises Tarabala + Chandra Balam for the logged-in user or a selected family member.
     Uses user's current location: lat/lon when provided, else profile (current_city, state, country).
+    Date/weekday are computed in the user's timezone (from timezone_offset) so they match the browser.
     """
-    now = datetime.now()
+    utc_now = datetime.now(timezone.utc)
+    now = utc_now + timedelta(hours=timezone_offset)
 
     # When lat/lon missing, use user's profile location for place-based lookup
     loc_city = ""

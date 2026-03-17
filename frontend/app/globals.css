@@ -51,16 +51,18 @@ body {
     @apply bg-white rounded-xl shadow-md ring-1 ring-gold-500/30 border border-cream-300;
   }
 
-  /* Primary gold button — glossy orange, touch-friendly (44px min on mobile) */
+  /* Primary gold button — 30% bg, full opacity text, inset border; hover: 100% bg, white text */
   .gold-btn {
-    @apply rounded-2xl px-4 py-2.5 sm:px-6 sm:py-3 min-h-[44px] sm:min-h-[48px] font-bold text-white touch-manipulation inline-flex items-center justify-center transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gold-400 focus:ring-offset-2 disabled:opacity-50;
-    background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 35%, #ea580c 100%);
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-    box-shadow: 0 4px 14px rgba(234,88,12,0.4), inset 0 1px 0 rgba(255,255,255,0.35);
+    @apply rounded-[10px] px-4 py-2.5 sm:px-6 sm:py-3 min-h-[44px] sm:min-h-[48px] font-bold touch-manipulation inline-flex items-center justify-center transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gold-400 focus:ring-offset-2 disabled:opacity-50;
+    background: rgba(245,158,11,0.3);
+    color: #f59e0b;
+    box-shadow: inset 0 0 0 2px #f59e0b;
   }
   .gold-btn:hover:not(:disabled) {
+    background: #f59e0b;
+    color: #fff;
     transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(234,88,12,0.5), inset 0 1px 0 rgba(255,255,255,0.4);
+    box-shadow: inset 0 0 0 2px #f59e0b, 0 6px 20px rgba(0,0,0,0.2);
   }
 
   /* Secondary sacred/maroon button */
@@ -100,46 +102,78 @@ body {
     @apply rounded-full px-8 py-3.5 min-h-[52px] font-bold text-sm touch-manipulation inline-flex items-center justify-center shadow-lg shadow-black/30 hover:shadow-xl hover:shadow-black/40 transition-all duration-300;
   }
 
-  /* Glossy 3D buttons — mobile-friendly (44px min touch target), responsive padding */
+  /* Nav buttons — 30% bg, full opacity text, 2px inset border; hover: 100% bg, white text */
   .btn-glossy {
-    @apply rounded-2xl px-4 py-2.5 sm:px-6 sm:py-3 min-h-[44px] sm:min-h-[48px] font-bold text-white text-sm touch-manipulation inline-flex items-center justify-center transition-all duration-300;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-    box-shadow: 0 4px 14px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
+    @apply rounded-[10px] px-4 py-2.5 sm:px-6 sm:py-3 min-h-[44px] sm:min-h-[48px] font-bold text-sm touch-manipulation inline-flex items-center justify-center transition-all duration-300;
   }
   .btn-glossy:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.25);
   }
   .btn-glossy-blue {
-    background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 35%, #1d4ed8 100%);
-    box-shadow: 0 4px 14px rgba(29,78,216,0.4), inset 0 1px 0 rgba(255,255,255,0.35);
+    background: rgba(59,130,246,0.3);
+    color: #3b82f6;
+    box-shadow: inset 0 0 0 2px #3b82f6;
   }
-  .btn-glossy-blue:hover { box-shadow: 0 6px 20px rgba(29,78,216,0.5), inset 0 1px 0 rgba(255,255,255,0.4); }
+  .btn-glossy-blue:hover {
+    background: #3b82f6;
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: inset 0 0 0 2px #3b82f6, 0 6px 20px rgba(0,0,0,0.2);
+  }
   .btn-glossy-purple {
-    background: linear-gradient(180deg, #a78bfa 0%, #8b5cf6 35%, #6d28d9 100%);
-    box-shadow: 0 4px 14px rgba(109,40,217,0.4), inset 0 1px 0 rgba(255,255,255,0.35);
+    background: rgba(139,92,246,0.3);
+    color: #8b5cf6;
+    box-shadow: inset 0 0 0 2px #8b5cf6;
   }
-  .btn-glossy-purple:hover { box-shadow: 0 6px 20px rgba(109,40,217,0.5), inset 0 1px 0 rgba(255,255,255,0.4); }
+  .btn-glossy-purple:hover {
+    background: #8b5cf6;
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: inset 0 0 0 2px #8b5cf6, 0 6px 20px rgba(0,0,0,0.2);
+  }
   .btn-glossy-orange {
-    background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 35%, #ea580c 100%);
-    box-shadow: 0 4px 14px rgba(234,88,12,0.4), inset 0 1px 0 rgba(255,255,255,0.35);
+    background: rgba(245,158,11,0.3);
+    color: #f59e0b;
+    box-shadow: inset 0 0 0 2px #f59e0b;
   }
-  .btn-glossy-orange:hover { box-shadow: 0 6px 20px rgba(234,88,12,0.5), inset 0 1px 0 rgba(255,255,255,0.4); }
+  .btn-glossy-orange:hover {
+    background: #f59e0b;
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: inset 0 0 0 2px #f59e0b, 0 6px 20px rgba(0,0,0,0.2);
+  }
   .btn-glossy-red {
-    background: linear-gradient(180deg, #f87171 0%, #ef4444 35%, #dc2626 100%);
-    box-shadow: 0 4px 14px rgba(220,38,38,0.4), inset 0 1px 0 rgba(255,255,255,0.35);
+    background: rgba(239,68,68,0.3);
+    color: #ef4444;
+    box-shadow: inset 0 0 0 2px #ef4444;
   }
-  .btn-glossy-red:hover { box-shadow: 0 6px 20px rgba(220,38,38,0.5), inset 0 1px 0 rgba(255,255,255,0.4); }
+  .btn-glossy-red:hover {
+    background: #ef4444;
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: inset 0 0 0 2px #ef4444, 0 6px 20px rgba(0,0,0,0.2);
+  }
   .btn-glossy-green {
-    background: linear-gradient(180deg, #86efac 0%, #22c55e 35%, #16a34a 100%);
-    box-shadow: 0 4px 14px rgba(22,163,74,0.4), inset 0 1px 0 rgba(255,255,255,0.35);
+    background: rgba(34,197,94,0.3);
+    color: #22c55e;
+    box-shadow: inset 0 0 0 2px #22c55e;
   }
-  .btn-glossy-green:hover { box-shadow: 0 6px 20px rgba(22,163,74,0.5), inset 0 1px 0 rgba(255,255,255,0.4); }
+  .btn-glossy-green:hover {
+    background: #22c55e;
+    color: #fff;
+    box-shadow: inset 0 0 0 2px #22c55e, 0 6px 20px rgba(0,0,0,0.2);
+  }
   .btn-glossy-dark {
-    background: linear-gradient(180deg, #475569 0%, #1e293b 35%, #0f172a 100%);
-    box-shadow: 0 4px 14px rgba(15,23,42,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+    background: rgba(30,41,59,0.3);
+    color: #1e293b;
+    box-shadow: inset 0 0 0 2px #1e293b;
   }
-  .btn-glossy-dark:hover { box-shadow: 0 6px 20px rgba(15,23,42,0.6), inset 0 1px 0 rgba(255,255,255,0.25); }
+  .btn-glossy-dark:hover {
+    background: #1e293b;
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: inset 0 0 0 2px #1e293b, 0 6px 20px rgba(0,0,0,0.2);
+  }
 
   /* Admin sidebar link active */
   .admin-nav-active {
