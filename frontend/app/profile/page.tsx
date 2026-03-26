@@ -151,15 +151,26 @@ export default function ProfilePage() {
   )
   const hasCurrentStates = currentStates.length > 0
   const phoneCountryOptions = useMemo(() => {
-    const seen = new Set<string>()
-    const options = Country.getAllCountries()
-      .map((c) => {
-        const code = String(c.phonecode || '').replace(/\D/g, '')
-        if (!code || seen.has(code)) return null
-        seen.add(code)
-        return { value: code, label: `+${code} (${c.name})` }
-      })
-      .filter((opt): opt is { value: string; label: string } => Boolean(opt))
+    const preferredByDialCode: Record<string, string> = {
+      '1': 'US',
+      '91': 'IN',
+    }
+    const byCode = new Map<string, { value: string; label: string; iso: string }>()
+    for (const c of Country.getAllCountries()) {
+      const code = String(c.phonecode || '').replace(/\D/g, '')
+      if (!code) continue
+      const candidate = { value: code, label: `+${code} (${c.name})`, iso: c.isoCode }
+      const existing = byCode.get(code)
+      if (!existing) {
+        byCode.set(code, candidate)
+        continue
+      }
+      const preferredIso = preferredByDialCode[code]
+      if (preferredIso && candidate.iso === preferredIso) {
+        byCode.set(code, candidate)
+      }
+    }
+    const options = Array.from(byCode.values()).map(({ value, label }) => ({ value, label }))
 
     options.sort((a, b) => a.value.localeCompare(b.value))
     const indiaIndex = options.findIndex((opt) => opt.value === DEFAULT_PHONE_COUNTRY_CODE)
