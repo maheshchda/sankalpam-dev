@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 
@@ -48,6 +50,12 @@ class Settings(BaseSettings):
     brevo_api_key: str = ""  # Brevo API key (Settings -> SMTP & API -> API Keys)
     email_test_secret: str = ""  # Optional: set in Railway to allow GET /api/email/test?email=X&token=Y (no login)
     sms_sender: str = "Sankalpam"  # Sender name (max 11 alphanumeric chars)
+    # Phone OTP channel: sms (default) | whatsapp | both — see EMAIL_SMS_SETUP.md
+    phone_verification_channel: str = "sms"
+    # Brevo WhatsApp (Meta template). Requires connected WA number + approved template in Brevo.
+    brevo_whatsapp_sender_number: str = ""  # E.164 digits only, e.g. 919876543210 (your Brevo WA number)
+    brevo_whatsapp_otp_template_id: Optional[int] = None  # Integer template ID from Brevo WhatsApp templates
+    brevo_whatsapp_otp_param: str = "OTP"  # Must match your template's transactional variable name
     
     # File Storage
     upload_path: str = "uploads"

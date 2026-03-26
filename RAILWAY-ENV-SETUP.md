@@ -47,6 +47,19 @@ For schedule-pooja invitations and auth emails to work in production, add these 
 | `FRONTEND_URL` | `https://www.poojasankalp.org` (no trailing slash) |
 | `BACKEND_URL` | `https://api.poojasankalp.org` |
 
+### SMS & WhatsApp (Brevo) — phone OTP on register / resend
+
+See **`backend/EMAIL_SMS_SETUP.md`** for full steps. Minimal Railway vars:
+
+| Variable | Notes |
+|----------|--------|
+| `BREVO_API_KEY` | Same API key as email (required for SMS/WhatsApp API) |
+| `SMS_SENDER` | Alphanumeric sender, max 11 chars (e.g. `Sankalpam`) |
+| `PHONE_VERIFICATION_CHANNEL` | Optional: `sms` (default), `whatsapp`, or `both` |
+| `BREVO_WHATSAPP_SENDER_NUMBER` | Digits + country code, e.g. `919876543210` |
+| `BREVO_WHATSAPP_OTP_TEMPLATE_ID` | Integer; Meta-approved OTP template in Brevo |
+| `BREVO_WHATSAPP_OTP_PARAM` | Optional; template variable name (default `OTP`) |
+
 ### Checklist
 
 1. [ ] Backend deployed on Railway (or elsewhere)

@@ -60,6 +60,12 @@ class UserUpdate(BaseModel):
         # Accept ISO 639-1 code (e.g. 'te') or full name (e.g. 'telugu')
         return Language.from_code(s) if len(s) == 2 else Language(s) if s in [e.value for e in Language] else None
 
+
+class PhoneUpdate(BaseModel):
+    """Set/update phone number; triggers OTP verification flow."""
+    phone: str = Field(..., min_length=10, max_length=20)
+
+
 class UserResponse(UserBase):
     id: int
     unique_id: Optional[str] = None
@@ -231,12 +237,21 @@ class SankalpamRequest(BaseModel):
     longitude: Optional[str] = None
     timezone_offset_hours: Optional[float] = None  # e.g. -6 for US Central; from browser when possible
     language_code: Optional[str] = None  # e.g. 'te', 'sa', 'hi' — overrides user profile for this request
+    # Family participating in this pooja (FamilyMember ids). Omit = include all saved members (legacy).
+    participant_member_ids: Optional[List[int]] = None
+    # Purpose phrase for Telugu elaboration: general | health | wealth | papam | business
+    sankalpa_intent: Optional[str] = None
+    # One-off overrides for this ritual (does not update profile)
+    override_gotram: Optional[str] = None
+    override_birth_nakshatra: Optional[str] = None
 
 class SankalpamResponse(BaseModel):
     sankalpam_text: str
     nearby_river: str
     session_id: int
     sankalpam_audio_url: Optional[str] = None  # e.g. /audio/uuid.mp3 when TTS succeeds
+    profile_ready: bool = False  # gotra + (nakshatra or rashi) on profile
+    highlight_names: List[str] = Field(default_factory=list)  # names to emphasize when reading (Telugu script when te)
 
 # Template Schemas
 class SankalpamTemplateBase(BaseModel):

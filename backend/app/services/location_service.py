@@ -1,6 +1,65 @@
+import re
 import httpx
-from typing import Optional, Dict
+from typing import Optional, Dict, List, Any
 from app.config import settings
+
+# Google keyword "mountain" returns utilities & brands (e.g. "Green Mountain Energy") — never treat as geography.
+_BAD_MOUNTAIN_POI_SUBSTRINGS = (
+    "energy", "electric", "electricity", "utility", "utilities", "solar", "wind farm",
+    "company", " inc", " llc", "l.l.c", "corp", "corporation", "limited",
+    "office", "hospital", "coffee", "bank", "church", "school", "apartments",
+    "resort", "marina", "golf", "marketing", "retail", "insurance",
+)
+
+# Explicit deny (Google titles change; substring checks can miss edge cases)
+_MOUNTAIN_NAME_BLOCKLIST = frozenset(
+    {
+        "green mountain energy",
+        "green mountain power",
+    }
+)
+
+# Real hills/peaks/ranges usually match one of these (avoids picking random natural_feature points)
+_MOUNTAIN_NAME_HINTS = re.compile(
+    r"\b(mount|mt\.?|mountain|peak|peaks|hill|hills|ridge|ridges|butte|mesa|volcano|"
+    r"balcones|escarpment|summit|range|sierra|alps|canyon|crag|knob)\b",
+    re.I,
+)
+
+_WATER_FEATURE_HINTS = re.compile(
+    r"\b(river|creek|stream|lake|bay|gulf|ocean|sea|beach|marsh|swamp|pond|reservoir|slough)\b",
+    re.I,
+)
+
+
+def _is_plausible_mountain_name(name: str) -> bool:
+    if not name or len(name) < 2:
+        return False
+    low = name.lower().strip()
+    if low in _MOUNTAIN_NAME_BLOCKLIST:
+        return False
+    if any(b in low for b in _BAD_MOUNTAIN_POI_SUBSTRINGS):
+        return False
+    return True
+
+
+def _is_geographic_mountain_candidate(place: Dict[str, Any]) -> bool:
+    """True only for likely terrain — not utilities, not water bodies (those use river/sea logic)."""
+    name = (place.get("name") or "").strip()
+    if not _is_plausible_mountain_name(name):
+        return False
+    types: List[str] = place.get("types") or []
+    # Hard reject obvious non-geography businesses
+    if "establishment" in types and "natural_feature" not in types and "park" not in types:
+        return False
+    if _WATER_FEATURE_HINTS.search(name):
+        return False
+    if _MOUNTAIN_NAME_HINTS.search(name):
+        return True
+    # natural_feature without water words — e.g. some named hills
+    if "natural_feature" in types and not _WATER_FEATURE_HINTS.search(name):
+        return True
+    return False
 
 async def get_nearby_rivers(
     city: str,
@@ -195,23 +254,26 @@ async def get_nearby_geographical_features(
                         result["river"] = river_name
                         # Don't set primary_feature here - let template_service handle translation
                 
-                # PRIORITY 3: If no river or sea/ocean, try mountains
+                # PRIORITY 3: terrain feature — use Places type natural_feature, NOT keyword "mountain"
+                # (keyword "mountain" ranks brands like "Green Mountain Energy" as if they were peaks).
                 if not result["primary_feature"]:
-                    params_mountain = {
+                    params_natural = {
                         "location": f"{lat},{lon}",
-                        "radius": 100000,  # 100km (mountains are larger features)
-                        "keyword": "mountain",
-                        "key": settings.google_maps_api_key
+                        "radius": 100000,
+                        "type": "natural_feature",
+                        "key": settings.google_maps_api_key,
                     }
-                    
-                    response = await client.get(url, params=params_mountain)
+                    response = await client.get(url, params=params_natural)
                     data = response.json()
-                    
+                    mountain_name = None
                     if data.get("results"):
-                        mountain_name = data["results"][0].get("name", "")
-                        if mountain_name:
-                            result["mountain"] = mountain_name
-                            result["primary_feature"] = f"{mountain_name} parvata pArshvE"  # "near mountain"
+                        for place in data.get("results", []):
+                            if _is_geographic_mountain_candidate(place):
+                                mountain_name = (place.get("name") or "").strip()
+                                break
+                    if mountain_name:
+                        result["mountain"] = mountain_name
+                        result["primary_feature"] = mountain_name
         
         except Exception as e:
             print(f"Error fetching geographical features from Google Places API: {e}")

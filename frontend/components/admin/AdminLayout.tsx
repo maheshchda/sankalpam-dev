@@ -9,6 +9,7 @@ const NAV = [
   { href: '/admin/users',       label: 'User Management',    icon: '👥' },
   { href: '/admin/admin-users', label: 'Admin Accounts',     icon: '🛡️' },
   { href: '/admin/roles',       label: 'Roles & Permissions',icon: '🔐' },
+  { href: '/admin/db',         label: 'DB Tables',         icon: '🗄️' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

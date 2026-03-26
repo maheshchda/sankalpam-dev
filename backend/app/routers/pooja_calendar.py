@@ -143,6 +143,17 @@ def _normalize_name(text: str) -> str:
     return " ".join(text.strip().lower().split())
 
 
+def _pooja_slug_from_english(name: str) -> str:
+    """
+    URL-safe slug for /pooja/<slug> links (must match frontend getPoojaSlug for ASCII names).
+    Always derived from the canonical English Excel name, not localized display text.
+    """
+    s = (name or "").strip().lower()
+    s = re.sub(r"[^a-z0-9]+", "-", s)
+    s = re.sub(r"-+", "-", s).strip("-")
+    return s
+
+
 def _inject_ganesha_pooja_row(
     rows: list[dict[str, str]],
     pooja_type: str | None,
@@ -189,6 +200,7 @@ def _inject_ganesha_pooja_row(
             "cal": "",
             "local_language": local_language,
             "pooja_date": "",
+            "pooja_slug": _pooja_slug_from_english("Ganesha Pooja"),
         }
         key = (
             _normalize_name(candidate["pooja_name"]),
@@ -556,6 +568,7 @@ def _read_sheet(
                 pooja_name,
                 country,
             ) if compute_yearly_dates and freq.strip().lower() == "annual" else "",
+            "pooja_slug": _pooja_slug_from_english(pooja_name),
         })
     # Excel has repeated lines for some poojas (especially Daily); collapse exact duplicates.
     seen: set[tuple[str, str, str, str, str]] = set()
@@ -609,7 +622,12 @@ def _get_fallback_pooja_rows(
     if selected_type in ("", "yearly"):
         for row in _FALLBACK_YEARLY_POOJAS:
             if not any(r.get("pooja_name") == row["pooja_name"] and r.get("freq") == row["freq"] for r in with_common):
-                with_common.append(row)
+                with_common.append(
+                    {
+                        **row,
+                        "pooja_slug": _pooja_slug_from_english(row["pooja_name"]),
+                    }
+                )
     return with_common
 
 

@@ -229,6 +229,7 @@ ALL_PERMISSIONS = [
     ("view_stats",           "View dashboard statistics and reports"),
     ("role_management",      "Create, edit and delete admin roles"),
     ("admin_management",     "Grant or revoke admin access for users"),
+    ("db_table_management",  "Browse database tables/rows and edit row values"),
 ]
 
 PERMISSION_CODES = [p[0] for p in ALL_PERMISSIONS]

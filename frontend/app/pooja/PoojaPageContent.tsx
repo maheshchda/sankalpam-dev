@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef, useMemo, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import api from '@/lib/api'
 import { toast } from 'react-toastify'
 import Link from 'next/link'
 import HomeButton from '@/components/HomeButton'
+import { getPoojaSlug, poojaSlugMatchesFilter } from '@/lib/poojaSlugs'
 import { motion, AnimatePresence } from 'framer-motion'
 import Select from 'react-select'
 import { Country, State, City } from 'country-state-city'
@@ -23,6 +24,54 @@ interface SankalpamData {
   nearby_river: string
   session_id: number
   sankalpam_audio_url?: string
+  profile_ready?: boolean
+  highlight_names?: string[]
+}
+
+interface FamilyMemberRow {
+  id: number
+  name: string
+  relation: string
+  is_deceased?: boolean
+}
+
+function isSankalpaProfileReady(u: { gotram?: string; birth_nakshatra?: string; birth_rashi?: string } | null): boolean {
+  if (!u) return false
+  const g = (u.gotram || '').trim()
+  const nak = (u.birth_nakshatra || '').trim()
+  const rashi = (u.birth_rashi || '').trim()
+  return Boolean(g && (nak || rashi))
+}
+
+function renderLineWithNameHighlights(line: string, names: string[]): ReactNode {
+  const uniq = Array.from(new Set(names)).filter(Boolean).sort((a, b) => b.length - a.length)
+  if (!uniq.length) return line
+  const parts: ReactNode[] = []
+  let remaining = line
+  let key = 0
+  while (remaining.length) {
+    let earliest = -1
+    let matched = ''
+    for (const n of uniq) {
+      const idx = remaining.indexOf(n)
+      if (idx >= 0 && (earliest < 0 || idx < earliest)) {
+        earliest = idx
+        matched = n
+      }
+    }
+    if (earliest < 0) {
+      parts.push(remaining)
+      break
+    }
+    if (earliest > 0) parts.push(remaining.slice(0, earliest))
+    parts.push(
+      <strong key={`h-${key++}`} className="text-xl font-bold text-amber-950">
+        {matched}
+      </strong>
+    )
+    remaining = remaining.slice(earliest + matched.length)
+  }
+  return <>{parts}</>
 }
 
 // Available languages for Sankalpam (must match backend Language enum codes)
@@ -50,8 +99,8 @@ function preferredLanguageToCode(preferred: string | undefined): string {
   return found ? found.code : ''
 }
 
-// Page labels in English and Telugu (when language selected is Telugu)
-const POOJA_PAGE_LABELS: Record<string, { en: string; te: string }> = {
+// Page labels: `en` required; add other language codes (same as Sankalpam language) as needed.
+const POOJA_PAGE_LABELS: Record<string, Record<string, string>> = {
   appName: { en: 'Sankalpam', te: 'సంకల్పం' },
   backToDashboard: { en: 'Back to Dashboard', te: 'డాష్‌బోర్డ్‌కు తిరిగి' },
   logout: { en: 'Logout', te: 'లాగౌట్' },
@@ -93,6 +142,116 @@ const POOJA_PAGE_LABELS: Record<string, { en: string; te: string }> = {
   rewind: { en: 'Rewind', te: 'వెనుకకు' },
   forward: { en: 'Forward', te: 'ముందుకు' },
   audioUnavailable: { en: 'Audio generation in progress or unavailable. Visual playback only.', te: 'ఆడియో రూపొందణ ప్రగతిలో లేదా అందుబాటులో లేదు. విజువల్ ప్లేబ్యాక్ మాత్రమే.' },
+  sankalpaSetupTitle: { en: 'Sankalpa setup', te: 'సంకల్ప తయారీ' },
+  sankalpaSetupParticipants: { en: 'Who is participating in this pooja with you?', te: 'ఈ పూజలో మీతో పాటు ఎవరెవరు పాల్గొంటున్నారు?' },
+  profileReadyBadge: { en: 'Your details are ready for Sankalpam', te: 'మీ వివరాలు సంకల్పానికి సిద్ధంగా ఉన్నాయి' },
+  profileIncompleteBadge: { en: 'Add gotra and nakshatra (or rashi) in your profile for the best experience', te: 'మంచి అనుభవానికి ప్రొఫైల్‌లో గోత్రం మరియు నక్షత్రం (లేదా రాశి) జోడించండి' },
+  gotraNakshatraSection: { en: 'Gotra & birth star', te: 'గోత్ర & నక్షత్ర నిర్ధారణ' },
+  editRitualDetails: { en: 'Edit for today', te: 'ఈ రోజు కోసం మార్చు' },
+  sankalpaIntentLabel: { en: 'Purpose (Telugu elaboration)', te: 'సంకల్ప ఉద్దేశం' },
+  intentGeneral: { en: 'General wellbeing', te: 'సాధారణ శ్రేయస్సు' },
+  intentHealth: { en: 'Health & longevity', te: 'ఆరోగ్యం' },
+  intentWealth: { en: 'Wealth', te: 'ఐశ్వర్యం' },
+  intentPapam: { en: 'Removal of sins', te: 'పాప నివృత్తి' },
+  intentBusiness: { en: 'Business growth', te: 'వ్యాపారాభివృద్ధి' },
+  startThePooja: {
+    en: 'Start the Pooja',
+    te: 'పూజను ప్రారంభించండి',
+    hi: 'पूजा आरंभ करें',
+    sa: 'पूजां आरभत',
+    ta: 'பூஜையைத் தொடங்குங்கள்',
+    kn: 'ಪೂಜೆಯನ್ನು ಪ್ರಾರಂಭಿಸಿ',
+    ml: 'പൂജ ആരംഭിക്കുക',
+    mr: 'पूजा सुरू करा',
+    gu: 'પૂજા શરૂ કરો',
+    bn: 'পূজা শুরু করুন',
+    or: 'ପୂଜା ଆରମ୍ଭ କରନ୍ତୁ',
+    pa: 'ਪੂਜਾ ਸ਼ੁਰੂ ਕਰੋ',
+  },
+  poojaPreparationTitle: {
+    en: 'Pooja preparation',
+    te: 'పూజ సిద్ధత',
+    hi: 'पूजा की तैयारी',
+    sa: 'पूजा-पूर्वतैयारी',
+    ta: 'பூஜை தயாரிப்பு',
+    kn: 'ಪೂಜೆ ತಯಾರಿ',
+    ml: 'പൂജയുടെ തയ്യാറെടുപ്പ്',
+    mr: 'पूजा तयारी',
+    gu: 'પૂજાની તૈયારી',
+    bn: 'পূজার প্রস্তুতি',
+    or: 'ପୂଜା ପ୍ରସ୍ତୁତି',
+    pa: 'ਪੂਜਾ ਦੀ ਤਿਆਰੀ',
+  },
+  poojaPreparationBody: {
+    en: 'Prepare a clean, sacred space; bathe and dress suitably; set up the altar and offerings before you begin the Sankalpam.',
+    te: 'శుభ్రమైన పవిత్ర స్థలం సిద్ధం చేయండి; స్నానం చేసి తగిన వస్త్రాలు ధరించండి; సంకల్పానికి ముందు వేదిక లేదా అర్చన సామగ్రిని అమర్చండి.',
+    hi: 'स्वच्छ एवं पवित्र स्थान तैयार करें; स्नान कर उपयुक्त वस्त्र धारण करें; संकल्प से पूर्व वेदी-सामग्री व्यवस्थित करें।',
+    sa: 'शुद्धं पवित्रं च स्थानं सज्जयतु; स्नानं कृत्वा युक्तवस्त्रं धारयतु; संकल्पात् पूर्वं वेदिकां उपकरणानि च व्यवस्थापयतु।',
+    ta: 'சுத்தமான புனித இடத்தைத் தயாருங்கள்; குளித்து ஏற்றவுடை அணியுங்கள்; சங்கல்பத்திற்கு முன் வேதிகையை அமைக்கவும்.',
+    kn: 'ಶುದ್ಧವಾದ ಪವಿತ್ರ ಸ್ಥಳವನ್ನು ಸಿದ್ಧಿಸಿ; ಸ್ನಾನ ಮಾಡಿ ಮರ್ಯಾದೆಯ ವಸ್ತ್ರ ಧರಿಸಿ; ಸಂಕಲ್ಪಕ್ಕು ಮುನ್ನ ವೇದಿಕೆಯನ್ನು ಸಜ್ಜುಗೊಳಿಸಿ.',
+    ml: 'വിശുദ്ധമായ സ്ഥലം തയ്യാറാക്കുക; സ്നാനം ചെയ്ത് ഉചിതമായ വസ്ത്രം ധരിക്കുക; സംകല്പത്തിന് മുമ്പ് വേദികയം സജ്ജമാക്കുക.',
+    mr: 'स्वच्छ पवित्र जागा तयार करा; अंघोळ घेऊन योग्य वस्त्रे घाला; संकल्पापूर्वी वेदी व सामग्री व्यवस्थित करा.',
+    gu: 'સ્વચ્છ પવિત્ર સ્થાન તૈયાર કરો; સ્નાન કરી યોગ્ય વસ્ત્રો પહેરો; સંકલ્પ પહેલાં વેદી ગોઠવો.',
+    bn: 'পরিষ্কার পবিত্র স্থান প্রস্তুত করুন; স্নান করে উপযুক্ত বস্ত্র পরিধান করুন; সংকল্পের আগে বেদি সাজান।',
+    or: 'ସ୍ୱଚ୍ଛ ପବିତ୍ର ସ୍ଥାନ ପ୍ରସ୍ତୁତ କରନ୍ତୁ; ସ୍ନାନ କରି ଉପଯୁକ୍ତ ବସ୍ତ୍ର ପିନ୍ଧନ୍ତୁ; ସଂକଳ୍ପ ପୂର୍ବେ ବେଦୀ ବ୍ୟବସ୍ଥା କରନ୍ତୁ।',
+    pa: 'ਸਾਫ਼ ਪਵਿੱਤਰ ਸਥਾਨ ਤਿਆਰ ਕਰੋ; ਇਸ਼ਨਾਨ ਕਰਕੇ ਢੁਕਵੇਂ ਕਪੜੇ ਪਾਓ; ਸੰਕਲਪ ਤੋਂ ਪਹਿਲਾਂ ਵੇਦੀ ਤਿਆਰ ਕਰੋ।',
+  },
+  poojaMaterialTitle: {
+    en: 'Materials required',
+    te: 'అవసరమైన సామగ్రి',
+    hi: 'आवश्यक सामग्री',
+    sa: 'आवश्यकाः द्रव्याः',
+    ta: 'தேவையான பொருட்கள்',
+    kn: 'ಅಗತ್ಯವಿರುವ ಸಾಮಗ್ರಿಗಳು',
+    ml: 'ആവശ്യമായ സാമഗ്രികൾ',
+    mr: 'आवश्यक साहित्य',
+    gu: 'જરૂરી સામગ્રી',
+    bn: 'প্রয়োজনীয় সামগ্রী',
+    or: 'ଆବଶ୍ୟକ ସାମଗ୍ରୀ',
+    pa: 'ਲੋੜੀਂਦੀ ਸਮਗ੍ਰੀ',
+  },
+  poojaMaterialBody: {
+    en: 'Flowers, lamps, incense, naivedyam, and other items depend on your tradition. Open the full list for this pooja.',
+    te: 'పువ్వులు, దీపాలు, అగరువత్తులు, నైవేద్యం మొదలైనవి మీ సంప్రదాయాన్ని బట్టి మారుతాయి. ఈ పూజకు పూర్తి జాబితాను తెరవండి.',
+    hi: 'फूल, दीप, धूप, नैवेद्य आदि आपकी परंपरा पर निर्भर करते हैं। इस पूजा की पूरी सूची देखें।',
+    sa: 'पुष्पाणि, दीपाः, धूपः, नैवेद्यं च परम्परायाम् अधीनाः। अस्याः पूजायाः सम्पूर्णं सूच्यां पश्यतु।',
+    ta: 'மலர், விளக்கு, தூபம், நைவேத்யம் முதலியன பாரம்பரியத்தைப் பொறுத்து மாறும். முழு பட்டியலைத் திறக்கவும்.',
+    kn: 'ಹೂವು, ದೀಪ, ಧೂಪ, ನೈವೇದ್ಯ ಮುಂತಾದವು ಸಂಪ್ರದಾಯಕ್ಕೆ ಅನುಗುಣವಾಗುತ್ತವೆ. ಪೂರ್ಣ ಪಟ್ಟಿಗೆ ಹೋಗಿ.',
+    ml: 'പുഷ്പങ്ങൾ, വിളക്ക്, ധൂപം, നൈവേദ്യം എന്നിവ പാരമ്പര്യമനുസരിച്ച് വ്യത്യാസപ്പെടും. പൂർണ്ണ പട്ടിക തുറക്കുക.',
+    mr: 'फुले, दिवा, धूप, नैवेद्य इतर सामग्री परंपरेनुसार बदलते. पूर्ण यादी पाहा.',
+    gu: 'ફૂલ, દીવો, ધૂપ, નૈવેદ્ય વગેરે પરંપરા અનુસાર બદલાય છે. સંપૂર્ણ યાદી દેખો.',
+    bn: 'ফুল, প্রদীপ, ধূপ, নৈবেদ্য ইত্যাদি পরম্পরা অনুযায়ী ভিন্ন হতে পারে। সম্পূর্ণ তালিকা দেখুন।',
+    or: 'ଫୁଲ, ଦୀପ, ଧୂପ, ନୈବେଦ୍ୟ ଇତ୍ୟାଦି ପରମ୍ପରା ଅନୁସାରେ ଭିନ୍ନ ହୋଇପାରେ। ସମ୍ପୂର୍ଣ ତାଲିକା ଦେଖନ୍ତୁ।',
+    pa: 'ਫੁੱਲ, ਦੀਵੇ, ਧੂਪ, ਨੈਵੇਦ ਆਦਿ ਰੀਤ ਅਨੁਸਾਰ ਬਦਲਦੇ ਹਨ। ਪੂਰੀ ਸੂਚੀ ਖੋਲ੍ਹੋ।',
+  },
+  readinessLinkLabel: {
+    en: 'Preparation guide',
+    te: 'సిద్ధత మార్గదర్శకం',
+    hi: 'तैयारी मार्गदर्शिका',
+    sa: 'सन्नाह-निर्देशिका',
+    ta: 'தயாரிப்பு வழிகாட்டி',
+    kn: 'ತಯಾರಿ ಮಾರ್ಗದರ್ಶಿ',
+    ml: 'തയ്യാറെടുപ്പ് മാർഗ്ഗനിർദ്ദേശം',
+    mr: 'तयारी मार्गदर्शक',
+    gu: 'તૈયારી માર્ગદર્શિકા',
+    bn: 'প্রস্তুতি নির্দেশিকা',
+    or: 'ପ୍ରସ୍ତୁତି ମାର୍ଗଦର୍ଶିକା',
+    pa: 'ਤਿਆਰੀ ਗਾਈਡ',
+  },
+  itemsLinkLabel: {
+    en: 'Full materials list',
+    te: 'పూర్తి సామగ్రి జాబితా',
+    hi: 'पूरी सामग्री सूची',
+    sa: 'सम्पूर्ण-द्रव्य-सूची',
+    ta: 'முழு பொருட்கள் பட்டியல்',
+    kn: 'ಪೂರ್ಣ ಸಾಮಗ್ರಿ ಪಟ್ಟಿ',
+    ml: 'പൂർണ്ണ സാമഗ്രി പട്ടിക',
+    mr: 'संपूर्ण साहित्य यादी',
+    gu: 'સંપૂર્ણ સામગ્રી યાદી',
+    bn: 'সম্পূর্ণ সামগ্রীর তালিকা',
+    or: 'ସମ୍ପୂର୍ଣ ସାମଗ୍ରୀ ତାଲିକା',
+    pa: 'ਪੂਰੀ ਸਮਗ੍ਰੀ ਸੂਚੀ',
+  },
 }
 
 function formatTime(seconds: number): string {
@@ -104,7 +263,8 @@ function formatTime(seconds: number): string {
 
 function t (key: keyof typeof POOJA_PAGE_LABELS, langCode: string): string {
   const labels = POOJA_PAGE_LABELS[key]
-  if (langCode === 'te' && labels.te) return labels.te
+  const lc = (langCode || 'en').toLowerCase()
+  if (labels[lc]) return labels[lc]
   return labels.en
 }
 
@@ -127,6 +287,8 @@ function getStateLevelPlaceholderKey(countryCode: string): keyof typeof POOJA_PA
 type PoojaPageProps = {
   /** When set, show only poojas matching this type (e.g. /pooja/ganesha shows only Ganesh Pooja) */
   includedPooja?: 'ganesha' | 'lakshmi' | null
+  /** From /pooja/[poojaSlug] or calendar — show only the pooja whose name slug matches */
+  filterPoojaSlug?: string | null
 }
 
 function isGaneshaPooja(name: string): boolean {
@@ -146,21 +308,10 @@ function matchesIncludedPooja(name: string, includedPooja: 'ganesha' | 'lakshmi'
   return true
 }
 
-function getPoojaSlug(name: string): string {
-  return (name || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
-
-function slugMatchesPooja(poojaName: string, slug: string): boolean {
-  const poojaSlug = getPoojaSlug(poojaName)
-  return poojaSlug === slug || poojaSlug.includes(slug) || slug.includes(poojaSlug)
-}
-
-export function PoojaPageContent({ includedPooja = null }: PoojaPageProps) {
+export function PoojaPageContent({ includedPooja = null, filterPoojaSlug = null }: PoojaPageProps) {
   const searchParams = useSearchParams()
   const poojaSlugFromUrl = searchParams.get('pooja')
+  const effectivePoojaSlug = filterPoojaSlug ?? poojaSlugFromUrl
   const { user, loading: authLoading, logout } = useAuth()
   const router = useRouter()
 
@@ -210,6 +361,14 @@ export function PoojaPageContent({ includedPooja = null }: PoojaPageProps) {
     preferred_language?: string
   } | null>(null)
 
+  const [familyMembers, setFamilyMembers] = useState<FamilyMemberRow[] | null>(null)
+  const [participantIds, setParticipantIds] = useState<number[] | null>(null)
+  const [sankalpaIntent, setSankalpaIntent] = useState('general')
+  const [showGotraNakEdit, setShowGotraNakEdit] = useState(false)
+  const [gotraOverride, setGotraOverride] = useState('')
+  const [nakshatraOverride, setNakshatraOverride] = useState('')
+  const familyHydratedRef = useRef(false)
+
   // Fetch latest user profile when Pooja page loads so we have current Country, State, City
   useEffect(() => {
     if (authLoading || !user) return
@@ -217,6 +376,34 @@ export function PoojaPageContent({ includedPooja = null }: PoojaPageProps) {
       .then((res) => setUserProfileForLocation(res.data))
       .catch(() => {})
   }, [authLoading, user])
+
+  useEffect(() => {
+    if (authLoading || !user) return
+    api
+      .get('/api/family/members')
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : []
+        setFamilyMembers(
+          list.map((m: { id: number; name: string; relation: string; is_deceased?: boolean }) => ({
+            id: m.id,
+            name: m.name,
+            relation: m.relation,
+            is_deceased: m.is_deceased,
+          }))
+        )
+      })
+      .catch(() => setFamilyMembers([]))
+  }, [authLoading, user])
+
+  useEffect(() => {
+    if (familyMembers === null || familyHydratedRef.current) return
+    familyHydratedRef.current = true
+    if (familyMembers.length === 0) {
+      setParticipantIds([])
+      return
+    }
+    setParticipantIds(familyMembers.filter((m) => !m.is_deceased).map((m) => m.id))
+  }, [familyMembers])
 
   // Initialize location and language from user profile once.
   // Preference order:
@@ -315,7 +502,7 @@ export function PoojaPageContent({ includedPooja = null }: PoojaPageProps) {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user, sankalpamLanguageCode, includedPooja, poojaSlugFromUrl])
+  }, [authLoading, user, sankalpamLanguageCode, includedPooja, filterPoojaSlug, effectivePoojaSlug])
 
   const fetchPoojas = async (languageCode: string) => {
     try {
@@ -331,9 +518,11 @@ export function PoojaPageContent({ includedPooja = null }: PoojaPageProps) {
         poojaList = Array.isArray(fallbackResponse.data) ? fallbackResponse.data : []
       }
 
-      // When coming from pooja-calendar with ?pooja=slug, show only that specific pooja
-      if (poojaSlugFromUrl) {
-        poojaList = poojaList.filter((pooja) => slugMatchesPooja(pooja.name, poojaSlugFromUrl))
+      // When coming from /pooja/[slug] or ?pooja=slug, show only that calendar pooja
+      if (effectivePoojaSlug) {
+        poojaList = poojaList.filter((pooja) =>
+          poojaSlugMatchesFilter(pooja.name, effectivePoojaSlug)
+        )
       }
       // When on /pooja/ganesha or /pooja/lakshmi, show only poojas of that type
       else if (includedPooja) {
@@ -566,6 +755,14 @@ export function PoojaPageContent({ includedPooja = null }: PoojaPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.country, location.state, location.city, location.latitude, location.longitude, hasStates])
 
+  const toggleParticipant = (memberId: number) => {
+    setParticipantIds((prev) => {
+      if (prev === null) return prev
+      if (prev.includes(memberId)) return prev.filter((x) => x !== memberId)
+      return [...prev, memberId]
+    })
+  }
+
   const generateSankalpam = async (sessionId: number) => {
     try {
       setSankalpamLoading(true)
@@ -596,6 +793,12 @@ export function PoojaPageContent({ includedPooja = null }: PoojaPageProps) {
         longitude: location.longitude || null,
         timezone_offset_hours: tzOffsetHours,
         language_code: sankalpamLanguageCode || undefined,
+        participant_member_ids: participantIds === null ? undefined : participantIds,
+        sankalpa_intent: sankalpaIntent || undefined,
+        override_gotram:
+          showGotraNakEdit && gotraOverride.trim() ? gotraOverride.trim() : undefined,
+        override_birth_nakshatra:
+          showGotraNakEdit && nakshatraOverride.trim() ? nakshatraOverride.trim() : undefined,
       })
 
       const sankalpamData: SankalpamData = response.data
@@ -733,6 +936,8 @@ export function PoojaPageContent({ includedPooja = null }: PoojaPageProps) {
       setPlaybackCurrentTime(value)
     }
   }
+
+  const onlyOnePooja = poojas.length === 1
 
   if (authLoading || loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>
@@ -938,12 +1143,148 @@ export function PoojaPageContent({ includedPooja = null }: PoojaPageProps) {
           </div>
         </div>
 
+        {/* Sankalpa: participants, intent, gotra/nakshatra (when language chosen) */}
+        {sankalpamLanguageCode ? (
+          <div className="bg-white rounded-lg shadow p-6 mb-6 space-y-6">
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-2xl font-bold">{t('sankalpaSetupTitle', sankalpamLanguageCode)}</h2>
+              {isSankalpaProfileReady(user) ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-800">
+                  <span aria-hidden>✓</span> {t('profileReadyBadge', sankalpamLanguageCode)}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900">
+                  {t('profileIncompleteBadge', sankalpamLanguageCode)}
+                </span>
+              )}
+            </div>
+
+            <div>
+              <p className="text-gray-600 mb-3 text-sm">{t('sankalpaSetupParticipants', sankalpamLanguageCode)}</p>
+              {familyMembers === null ? (
+                <p className="text-gray-500 text-sm">…</p>
+              ) : familyMembers.filter((m) => !m.is_deceased).length === 0 ? (
+                <p className="text-gray-500 text-sm">
+                  {sankalpamLanguageCode === 'te'
+                    ? 'కుటుంబ సభ్యులను డాష్‌బోర్డ్‌లో జోడించండి.'
+                    : 'Add family members from your dashboard to include them here.'}
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {familyMembers
+                    .filter((m) => !m.is_deceased)
+                    .map((m) => (
+                      <li key={m.id} className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id={`participant-${m.id}`}
+                          checked={participantIds?.includes(m.id) ?? false}
+                          onChange={() => toggleParticipant(m.id)}
+                          className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                        />
+                        <label htmlFor={`participant-${m.id}`} className="text-gray-800 cursor-pointer">
+                          <span className="font-medium">{m.name}</span>
+                          <span className="text-gray-500 text-sm"> ({m.relation})</span>
+                        </label>
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="sankalpa-intent" className="block text-xs text-gray-600 mb-1">
+                {t('sankalpaIntentLabel', sankalpamLanguageCode)}
+              </label>
+              <select
+                id="sankalpa-intent"
+                value={sankalpaIntent}
+                onChange={(e) => setSankalpaIntent(e.target.value)}
+                className="max-w-md w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+              >
+                <option value="general">{t('intentGeneral', sankalpamLanguageCode)}</option>
+                <option value="health">{t('intentHealth', sankalpamLanguageCode)}</option>
+                <option value="wealth">{t('intentWealth', sankalpamLanguageCode)}</option>
+                <option value="papam">{t('intentPapam', sankalpamLanguageCode)}</option>
+                <option value="business">{t('intentBusiness', sankalpamLanguageCode)}</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-start gap-4 rounded-xl border border-amber-100 bg-amber-50/60 p-4">
+              <div className="text-5xl leading-none select-none" aria-hidden>
+                🪷
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <h3 className="font-semibold text-gray-900">{t('gotraNakshatraSection', sankalpamLanguageCode)}</h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowGotraNakEdit((open) => {
+                        const next = !open
+                        if (next && user) {
+                          setGotraOverride(user.gotram || '')
+                          setNakshatraOverride(user.birth_nakshatra || '')
+                        }
+                        return next
+                      })
+                    }}
+                    className="text-sm text-amber-700 underline hover:text-amber-900"
+                  >
+                    {t('editRitualDetails', sankalpamLanguageCode)}
+                  </button>
+                </div>
+                {!showGotraNakEdit ? (
+                  <p className="text-gray-800 break-words">
+                    <span className="font-medium">{user?.gotram || '—'}</span>
+                    {user?.birth_nakshatra ? (
+                      <span className="text-gray-600"> · {user.birth_nakshatra}</span>
+                    ) : null}
+                    {user?.birth_rashi ? (
+                      <span className="text-gray-600"> · {user.birth_rashi}</span>
+                    ) : null}
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Gotra</label>
+                      <input
+                        type="text"
+                        value={gotraOverride}
+                        onChange={(e) => setGotraOverride(e.target.value)}
+                        className="w-full rounded-md border-gray-300 shadow-sm text-sm"
+                        placeholder={user?.gotram || ''}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Janma Nakshatra</label>
+                      <input
+                        type="text"
+                        value={nakshatraOverride}
+                        onChange={(e) => setNakshatraOverride(e.target.value)}
+                        className="w-full rounded-md border-gray-300 shadow-sm text-sm"
+                        placeholder={user?.birth_nakshatra || ''}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {/* Pooja selection */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-2xl font-bold mb-2">{t('selectAPooja', sankalpamLanguageCode)}</h2>
-          <p className="text-gray-600 mb-6">
-            {t('poojaListDesc', sankalpamLanguageCode)}
-          </p>
+          <h2 className="text-2xl font-bold mb-2">
+            {onlyOnePooja && sankalpamLanguageCode
+              ? t('startThePooja', sankalpamLanguageCode)
+              : t('selectAPooja', sankalpamLanguageCode)}
+          </h2>
+          {!(onlyOnePooja && sankalpamLanguageCode) && (
+            <p className="text-gray-600 mb-6">
+              {t('poojaListDesc', sankalpamLanguageCode)}
+            </p>
+          )}
 
           {!sankalpamLanguageCode ? (
             <p className="text-gray-500 text-center py-8">
@@ -970,11 +1311,43 @@ export function PoojaPageContent({ includedPooja = null }: PoojaPageProps) {
                   {pooja.duration_minutes && (
                     <p className="text-sm text-gray-500">{t('duration', sankalpamLanguageCode)}: {pooja.duration_minutes} {t('minutes', sankalpamLanguageCode)}</p>
                   )}
-                  <button className="mt-3 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700">
+                  <button type="button" className="mt-3 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700">
                     {selectedPooja?.id === pooja.id ? t('selected', sankalpamLanguageCode) : t('selectAndStart', sankalpamLanguageCode)}
                   </button>
                 </div>
               ))}
+              {onlyOnePooja && poojas[0] && (
+                <div className="space-y-4 pt-4 mt-4 border-t border-amber-100">
+                  <section className="rounded-lg border border-amber-100 bg-amber-50/60 p-4">
+                    <h3 className="text-lg font-semibold text-amber-900 mb-2">
+                      {t('poojaPreparationTitle', sankalpamLanguageCode)}
+                    </h3>
+                    <p className="text-gray-700 text-sm leading-relaxed mb-3">
+                      {t('poojaPreparationBody', sankalpamLanguageCode)}
+                    </p>
+                    <Link
+                      href={`/pooja-readiness/${getPoojaSlug(poojas[0].name)}`}
+                      className="text-sm font-medium text-amber-800 underline hover:text-amber-950"
+                    >
+                      {t('readinessLinkLabel', sankalpamLanguageCode)}
+                    </Link>
+                  </section>
+                  <section className="rounded-lg border border-amber-100 bg-amber-50/60 p-4">
+                    <h3 className="text-lg font-semibold text-amber-900 mb-2">
+                      {t('poojaMaterialTitle', sankalpamLanguageCode)}
+                    </h3>
+                    <p className="text-gray-700 text-sm leading-relaxed mb-3">
+                      {t('poojaMaterialBody', sankalpamLanguageCode)}
+                    </p>
+                    <Link
+                      href={`/pooja-items/${getPoojaSlug(poojas[0].name)}`}
+                      className="text-sm font-medium text-amber-800 underline hover:text-amber-950"
+                    >
+                      {t('itemsLinkLabel', sankalpamLanguageCode)}
+                    </Link>
+                  </section>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1138,7 +1511,7 @@ export function PoojaPageContent({ includedPooja = null }: PoojaPageProps) {
                               : 'text-gray-700'
                           }`}
                         >
-                          {line}
+                          {renderLineWithNameHighlights(line, sankalpam.highlight_names || [])}
                         </motion.div>
                       ))}
                   </AnimatePresence>

@@ -11,6 +11,7 @@ from app.config import settings
 from app.services.location_service import get_nearby_geographical_features
 from app.services.divineapi_service import generate_sankalpam
 from app.services.tts_service import text_to_speech
+from app.services.sankalpa_family_builder import filter_family_participants, profile_ready_for_sankalpa
 
 router = APIRouter()
 
@@ -49,10 +50,10 @@ async def generate_sankalpam_for_pooja(
         "Ganga" if request.location_country.lower() == "india" else "Sacred River"
     )
     
-    # Get user's family members for sankalpam
-    family_members = db.query(FamilyMember).filter(
+    all_family = db.query(FamilyMember).filter(
         FamilyMember.user_id == current_user.id
     ).all()
+    family_members = filter_family_participants(all_family, request.participant_member_ids)
 
     # Language: request (pooja page dropdown) overrides user profile
     if request.language_code and request.language_code.strip():
@@ -78,7 +79,7 @@ async def generate_sankalpam_for_pooja(
             lang_code = "sa"
     force_telugu = lang_code == "te"
 
-    sankalpam_text = await generate_sankalpam(
+    sankalpam_text, highlight_names = await generate_sankalpam(
         user=current_user,
         family_members=family_members,
         location_city=request.location_city,
@@ -96,6 +97,9 @@ async def generate_sankalpam_for_pooja(
         longitude=request.longitude,
         timezone_offset_hours=request.timezone_offset_hours,
         force_telugu=force_telugu,
+        sankalpa_intent=request.sankalpa_intent,
+        override_gotram=request.override_gotram,
+        override_birth_nakshatra=request.override_birth_nakshatra,
     )
 
     # If user selected Telugu but got Sanskrit/Hindi (e.g. Divine API returned wrong language), retry with force_telugu
@@ -108,7 +112,7 @@ async def generate_sankalpam_for_pooja(
             or "[पूजा का नाम यहाँ]" in t
         )
     if lang_code == "te" and sankalpam_text and is_sanskrit_or_hindi(sankalpam_text):
-        sankalpam_text = await generate_sankalpam(
+        sankalpam_text, highlight_names = await generate_sankalpam(
             user=current_user,
             family_members=family_members,
             location_city=request.location_city,
@@ -126,6 +130,9 @@ async def generate_sankalpam_for_pooja(
             longitude=request.longitude,
             timezone_offset_hours=request.timezone_offset_hours,
             force_telugu=True,
+            sankalpa_intent=request.sankalpa_intent,
+            override_gotram=request.override_gotram,
+            override_birth_nakshatra=request.override_birth_nakshatra,
         )
 
     # Update session with sankalpam data
@@ -154,5 +161,7 @@ async def generate_sankalpam_for_pooja(
         nearby_river=nearby_river,
         session_id=session.id,
         sankalpam_audio_url=sankalpam_audio_url,
+        profile_ready=profile_ready_for_sankalpa(current_user),
+        highlight_names=highlight_names or [],
     )
 

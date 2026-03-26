@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import api from '@/lib/api'
 import Link from 'next/link'
 import HomeButton from '@/components/HomeButton'
+import { getCanonicalPoojaSlug, resolveCalendarRowSlug } from '@/lib/poojaSlugs'
 
 interface CalendarRow {
   pooja_name: string
@@ -13,6 +14,10 @@ interface CalendarRow {
   cal: string
   local_language: string
   pooja_date?: string
+  /** Stable ASCII slug from backend (English key); required when pooja_name is localized script */
+  pooja_slug?: string
+  /** Some proxies/clients may camelCase */
+  poojaSlug?: string
 }
 
 const YEARS = [2026, 2027, 2028, 2029, 2030]
@@ -37,6 +42,9 @@ const LANGUAGES: { code: LangCode; label: string; native: string }[] = [
   { code: 'as', label: 'Assamese', native: 'অসমীয়া' },
   { code: 'kok', label: 'Konkani', native: 'कोंकणी' },
 ]
+
+/** English UI + these states → gate "Open Pooja" by Telugu template availability */
+const TELUGU_NATIVE_STATES = new Set<string>(['Telangana', 'Andhra Pradesh'])
 
 const STATE_LOCAL_LANGUAGE: Record<string, LangCode> = {
   'Andhra Pradesh': 'te',
@@ -89,8 +97,12 @@ const T: Record<string, Partial<Record<LangCode, string>>> = {
   welcome: { en: 'Welcome, ', hi: 'स्वागत है, ', te: 'స్వాగతం, ', ta: 'வரவேற்பு, ', mr: 'स्वागत आहे, ', bn: 'স্বাগতম, ', gu: 'સ્વાગત છે, ', kn: 'ಸ್ವಾಗತ, ', ml: 'സ്വാഗതം, ', pa: 'ਜੀ ਆਇਆਂ ਨੂੰ, ', or: 'ସ୍ୱାଗତ, ', ur: 'خوش آمدید، ', sa: 'स्वागतम्, ' },
   dashboard: { en: 'Dashboard', hi: 'डैशबोर्ड', te: 'డాష్‌బోర్డ్', ta: 'டாஷ்போர்டு', mr: 'डॅशबोर्ड', bn: 'ড্যাশবোর্ড', gu: 'ડૅશબોર્ડ', kn: 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್', ml: 'ഡാഷ്ബോർഡ്', pa: 'ਡੈਸ਼ਬੋਰਡ', or: 'ଡ୍ୟାସବୋର୍ଡ', ur: 'ڈیش بورڈ', sa: 'नियन्त्रणपट्टम्' },
   selectPooja: { en: 'Select Pooja', hi: 'पूजा चुनें', te: 'పూజ ఎంచుకోండి', ta: 'பூஜையைத் தேர்ந்தெடு', mr: 'पूजा निवडा', bn: 'পূজা নির্বাচন করুন', gu: 'પૂજા પસંદ કરો', kn: 'ಪೂಜಾ ಆಯ್ಕೆಮಾಡಿ', ml: 'പൂജ തിരഞ്ഞെടുക്കുക', pa: 'ਪੂਜਾ ਚੁਣੋ', or: 'ପୂଜା ବାଛନ୍ତୁ', ur: 'پوجا منتخب کریں', sa: 'पूजां चिनुत' },
+  /** Nav link to /pooja (full list) — not the same as clicking a calendar row */
+  browseAllPoojas: { en: 'Browse all poojas', hi: 'सभी पूजा देखें', te: 'అన్ని పూజలను చూడండి', ta: 'அனைத்து பூஜைகளும்', mr: 'सर्व पूजा पहा', bn: 'সব পূজা ব্রাউজ করুন', gu: 'બધી પૂજાઓ જુઓ', kn: 'ಎಲ್ಲಾ ಪೂಜೆಗಳನ್ನು ನೋಡಿ', ml: 'എല്ലാ പൂജകളും', pa: 'ਸਾਰੀਆਂ ਪੂਜਾਵਾਂ', or: 'ସମସ୍ତ ପୂଜା', ur: 'تمام پوجا', sa: 'सर्वाः पूजाः' },
   logout: { en: 'Logout', hi: 'लॉग आउट', te: 'లాగౌట్', ta: 'வெளியேறு', mr: 'लॉग आउट', bn: 'লগ আউট', gu: 'લૉગ આઉટ', kn: 'ಲಾಗ್ ಔಟ್', ml: 'ലോഗ് ഔട്ട്', pa: 'ਲੌਗ ਆਉਟ', or: 'ଲଗ୍ ଆଉଟ୍', ur: 'لاگ آؤٹ', sa: 'बहिर्गमनम्' },
   apiNotFound: { en: 'API not found. Is the backend running?', hi: 'API नहीं मिला। क्या बैकएंड चल रहा है?', te: 'API దొరకలేదు. బ్యాకెండ్ పని చేస్తోందా?', ta: 'API காணப்படவில்லை. பின்னணி இயங்குகிறதா?', mr: 'API आढळली नाही. बॅकएंड चालू आहे का?', bn: 'API পাওয়া যায়নি। ব্যাকএন্ড চলছে কি?', gu: 'API મળ્યો નથી. શું બેકએન્ડ ચાલી રહ્યું છે?', kn: 'API ಸಿಗಲಿಲ್ಲ. ಬ್ಯಾಕ್‌ಎಂಡ್ ಚಾಲನೆಯಲ್ಲಿದೆಯೇ?', ml: 'API കണ്ടെത്തിയില്ല. ബാക്ക്എൻഡ് പ്രവർത്തിക്കുന്നുണ്ടോ?', pa: 'API ਨਹੀਂ ਮਿਲੀ। ਕੀ ਬੈਕਐਂਡ ਚੱਲ ਰਿਹਾ ਹੈ?', or: 'API ମିଳିଲା ନାହିଁ। ବ୍ୟାକଏଣ୍ଡ ଚାଲୁଛି କି?', ur: 'API نہیں ملی۔ کیا بیک اینڈ چل رہا ہے؟', sa: 'API न प्राप्ता। पृष्ठतः प्रचलति वा?' },
+  openPooja: { en: 'Open Pooja', hi: 'पूजा खोलें', te: 'పూజ తెరవండి', ta: 'பூஜையைத் திற', mr: 'पूजा उघडा', bn: 'পূজা খুলুন', gu: 'પૂજા ખોલો', kn: 'ಪೂಜೆ ತೆರೆಯಿರಿ', ml: 'പൂജ തുറക്കുക', pa: 'ਪੂਜਾ ਖੋਲੋ', or: 'ପୂଜା ଖୋଲନ୍ତୁ', ur: 'پوجا کھولیں', sa: 'पूजां उद्घाटयतु' },
+  comingSoon: { en: 'Coming Soon', hi: 'जल्द आ रहा है', te: 'త్వరలో', ta: 'விரைவில்', mr: 'लवकरच', bn: 'শীঘ্রই আসছে', gu: 'ટૂંક સમયમાં', kn: 'ಶೀಘ್ರದಲ್ಲೇ', ml: 'ഉടൻ വരുന്നു', pa: 'ਜਲਦੀ ਆ ਰਿਹਾ ਹੈ', or: 'ଶୀଘ୍ର ଆସୁଛି', ur: 'جلد آرہا ہے', sa: 'अचिरेण' },
 }
 
 function preferredLanguageToCode(preferred: string | undefined): LangCode | '' {
@@ -143,16 +155,41 @@ function t(key: keyof typeof T, lang: LangCode): string {
   return val ?? String(key)
 }
 
-function getLinkedPoojaPath(row: CalendarRow): string {
-  const slug = getPoojaSlug(row.pooja_name)
-  return `/pooja?pooja=${encodeURIComponent(slug)}`
+/**
+ * Language code used to filter poojas by sankalpam template availability (same as /api/pooja/list).
+ * — Any non-English calendar language → gate by that language.
+ * — English + Telangana / Andhra Pradesh → gate by Telugu (te), per regional expectation.
+ */
+function templateLanguageForCalendarAvailability(lang: LangCode, state: string): LangCode | null {
+  if (lang !== 'en') return lang
+  if (TELUGU_NATIVE_STATES.has(state)) return 'te'
+  return null
 }
 
-function getPoojaSlug(name: string): string {
-  return (name || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+function getLinkedPoojaPath(row: CalendarRow): string {
+  const slug = resolveCalendarRowSlug(row)
+  if (!slug) {
+    return '/pooja'
+  }
+  return `/pooja/${encodeURIComponent(slug)}`
+}
+
+type PoojaAvailabilityState =
+  | { kind: 'off' }
+  | { kind: 'loading' }
+  | { kind: 'ready'; slugs: Set<string> }
+  | { kind: 'error' }
+
+function isCalendarOpenPoojaEnabled(row: CalendarRow, availability: PoojaAvailabilityState): boolean {
+  if (availability.kind === 'off' || availability.kind === 'error') {
+    return true
+  }
+  if (availability.kind === 'loading') {
+    return false
+  }
+  const slug = resolveCalendarRowSlug(row)
+  if (!slug) return false
+  return availability.slugs.has(getCanonicalPoojaSlug(slug))
 }
 
 export default function PoojaCalendarPage() {
@@ -169,8 +206,13 @@ export default function PoojaCalendarPage() {
   const [statesError, setStatesError] = useState<string | null>(null)
   const [lang, setLang] = useState<LangCode>('en')
   const [langInitialized, setLangInitialized] = useState(false)
+  const [poojaAvailability, setPoojaAvailability] = useState<PoojaAvailabilityState>({ kind: 'off' })
   const allowedLanguageCodes = getAllowedLanguageCodesForState(state)
   const availableLanguages = LANGUAGES.filter((l) => allowedLanguageCodes.includes(l.code))
+  const templateLangForGate = useMemo(
+    () => templateLanguageForCalendarAvailability(lang, state),
+    [lang, state],
+  )
 
   useEffect(() => {
     if (authLoading || langInitialized) return
@@ -232,6 +274,29 @@ export default function PoojaCalendarPage() {
       .finally(() => setLoadingData(false))
   }, [state, year, poojaType, lang, country])
 
+  useEffect(() => {
+    if (!user || !templateLangForGate) {
+      setPoojaAvailability({ kind: 'off' })
+      return
+    }
+    let cancelled = false
+    setPoojaAvailability({ kind: 'loading' })
+    api
+      .get<{ name: string }[]>('/api/pooja/list', { params: { language_code: templateLangForGate } })
+      .then((res) => {
+        if (cancelled) return
+        const list = Array.isArray(res.data) ? res.data : []
+        const slugs = new Set(list.map((p) => getCanonicalPoojaSlug(p.name)))
+        setPoojaAvailability({ kind: 'ready', slugs })
+      })
+      .catch(() => {
+        if (!cancelled) setPoojaAvailability({ kind: 'error' })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [user, templateLangForGate])
+
   if (authLoading) {
     return <div className="min-h-screen flex items-center justify-center">{t('loading', lang)}</div>
   }
@@ -248,7 +313,9 @@ export default function PoojaCalendarPage() {
                 <>
                   <span className="text-cream-300/70 text-sm hidden sm:inline">{t('welcome', lang)}<span className="text-gold-400 font-medium">{user.first_name}</span>!</span>
                   <Link href="/dashboard" className="btn-glossy btn-glossy-purple">{t('dashboard', lang)}</Link>
-                  <Link href="/pooja" className="gold-btn">{t('selectPooja', lang)}</Link>
+                  <Link href="/pooja" className="gold-btn" title={t('browseAllPoojas', lang)}>
+                    {t('browseAllPoojas', lang)}
+                  </Link>
                   <button onClick={() => { logout(); router.push('/login') }} className="btn-glossy btn-glossy-red">{t('logout', lang)}</button>
                 </>
               ) : (
@@ -353,16 +420,75 @@ export default function PoojaCalendarPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-cream-200">
-                  {rows.map((row, i) => (
-                    <tr key={i} className="hover:bg-cream-200/50">
+                  {rows.map((row, i) => {
+                    const poojaPath = getLinkedPoojaPath(row)
+                    const rowSlug = resolveCalendarRowSlug(row)
+                    const stopRowNav = (e: MouseEvent) => e.stopPropagation()
+                    const openEnabled = isCalendarOpenPoojaEnabled(row, poojaAvailability)
+                    return (
+                    <tr
+                      key={i}
+                      className={
+                        openEnabled
+                          ? 'hover:bg-cream-200/50 cursor-pointer'
+                          : 'hover:bg-cream-200/40 cursor-default'
+                      }
+                      onClick={() => {
+                        if (openEnabled) router.push(poojaPath)
+                      }}
+                      title={poojaPath}
+                    >
                       <td className="px-4 py-3 text-sm text-stone-800">
                         <div className="flex items-center flex-wrap gap-2">
-                          <Link href={getLinkedPoojaPath(row)} className="gold-link font-medium underline">
-                            {row.pooja_name}
+                          {openEnabled ? (
+                            <Link href={poojaPath} onClick={stopRowNav} className="gold-link font-medium underline">
+                              {row.pooja_name}
+                            </Link>
+                          ) : (
+                            <span className="font-medium text-stone-500">{row.pooja_name}</span>
+                          )}
+                          {openEnabled ? (
+                            <Link
+                              href={poojaPath}
+                              onClick={stopRowNav}
+                              className="px-2 py-1 text-xs bg-gold-600 text-sacred-900 rounded hover:bg-gold-500 font-semibold"
+                            >
+                              {t('openPooja', lang)}
+                            </Link>
+                          ) : (
+                            <span
+                              className="px-2 py-1 text-xs rounded font-semibold bg-stone-200 text-stone-500 cursor-not-allowed select-none"
+                              aria-disabled
+                            >
+                              {t('comingSoon', lang)}
+                            </span>
+                          )}
+                          <Link
+                            href={
+                              rowSlug ? `/pooja-readiness/${encodeURIComponent(rowSlug)}` : '#'
+                            }
+                            onClick={stopRowNav}
+                            className={`px-2 py-1 text-xs rounded ${
+                              rowSlug
+                                ? 'bg-sacred-700 text-cream-100 hover:bg-sacred-600'
+                                : 'bg-stone-300 text-stone-500 pointer-events-none cursor-not-allowed'
+                            }`}
+                            aria-disabled={!rowSlug}
+                          >
+                            Readiness Info
                           </Link>
-                          <Link href={getLinkedPoojaPath(row)} className="px-2 py-1 text-xs bg-gold-600 text-sacred-900 rounded hover:bg-gold-500 font-semibold">Open Pooja</Link>
-                          <Link href={`/pooja-readiness/${getPoojaSlug(row.pooja_name)}`} className="px-2 py-1 text-xs bg-sacred-700 text-cream-100 rounded hover:bg-sacred-600">Readiness Info</Link>
-                          <Link href={`/pooja-items/${getPoojaSlug(row.pooja_name)}`} className="px-2 py-1 text-xs bg-sacred-600 text-cream-100 rounded hover:bg-sacred-500">Items List</Link>
+                          <Link
+                            href={rowSlug ? `/pooja-items/${encodeURIComponent(rowSlug)}` : '#'}
+                            onClick={stopRowNav}
+                            className={`px-2 py-1 text-xs rounded ${
+                              rowSlug
+                                ? 'bg-sacred-600 text-cream-100 hover:bg-sacred-500'
+                                : 'bg-stone-300 text-stone-500 pointer-events-none cursor-not-allowed'
+                            }`}
+                            aria-disabled={!rowSlug}
+                          >
+                            Items List
+                          </Link>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-stone-600">{row.freq}</td>
@@ -371,7 +497,8 @@ export default function PoojaCalendarPage() {
                       )}
                       <td className="px-4 py-3 text-sm text-stone-600">{row.local_language}</td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

@@ -7,14 +7,22 @@ from datetime import datetime
 
 from app.database import get_db
 from app.models import User, VerificationToken, VerificationStatus, _gen_uid
-from app.schemas import UserCreate, UserResponse, Token, LoginResponse, LoginRequest, VerificationRequest, ForgotPasswordRequest, ResetPasswordRequest
+from app.schemas import UserCreate, UserResponse, Token, LoginResponse, LoginRequest, VerificationRequest, ForgotPasswordRequest, ResetPasswordRequest, PhoneUpdate
 from app.auth import verify_password, get_password_hash, create_access_token
 from app.dependencies import get_current_user
 from app.config import settings
 from app.services.email_service import send_verification_email, send_password_reset_email
-from app.services.sms_service import send_verification_sms
+from app.services.sms_service import dispatch_phone_verification_otp
 
 router = APIRouter()
+
+def _normalize_phone_input(phone: str) -> str:
+    """Basic normalization to digits (+ removed). Mirrors Brevo normalization expectations."""
+    if not phone:
+        return ""
+    digits = "".join(ch for ch in str(phone).strip() if ch.isdigit())
+    return digits
+
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
@@ -90,7 +98,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         
         # Send verification email and SMS
         send_verification_email(db_user.email, email_token)
-        send_verification_sms(db_user.phone, phone_otp)
+        dispatch_phone_verification_otp(db_user.phone, phone_otp)
         
         return db_user
     except HTTPException:
@@ -104,6 +112,67 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Registration failed: {str(e)}"
         )
+
+
+@router.post("/update-phone", status_code=status.HTTP_200_OK)
+async def update_phone(
+    body: PhoneUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Update current user's phone number and send OTP to verify it.
+    Resets phone_verified to False and invalidates any pending phone tokens.
+    """
+    raw = (body.phone or "").strip()
+    normalized = _normalize_phone_input(raw)
+    if len(normalized) < 10 or len(normalized) > 20:
+        raise HTTPException(status_code=400, detail="Invalid phone number")
+
+    # If unchanged, don't resend OTP unless unverified.
+    if current_user.phone and normalized == _normalize_phone_input(current_user.phone):
+        if current_user.phone_verified:
+            return {"message": "Phone already set and verified."}
+    else:
+        # Ensure unique
+        exists = db.query(User).filter(User.phone == normalized, User.id != current_user.id).first()
+        if exists:
+            raise HTTPException(status_code=400, detail="Phone number already registered")
+        current_user.phone = normalized
+        current_user.phone_verified = False
+        db.commit()
+        db.refresh(current_user)
+
+    # Invalidate any existing pending phone tokens for this user
+    existing_tokens = db.query(VerificationToken).filter(
+        VerificationToken.user_id == current_user.id,
+        VerificationToken.token_type == "phone",
+        VerificationToken.status == VerificationStatus.PENDING
+    ).all()
+    for token in existing_tokens:
+        token.status = VerificationStatus.EXPIRED
+    db.commit()
+
+    # Generate new OTP
+    phone_otp = f"{secrets.randbelow(900000) + 100000:06d}"
+    db_phone_token = VerificationToken(
+        user_id=current_user.id,
+        token=phone_otp,
+        token_type="phone",
+        expires_at=datetime.utcnow() + timedelta(minutes=10)
+    )
+    db.add(db_phone_token)
+    db.commit()
+
+    dispatch_phone_verification_otp(current_user.phone, phone_otp)
+
+    is_dev = settings.secret_key == "your-secret-key-change-in-production"
+    resp = {"message": "Verification code sent to your phone. Please check your messages."}
+    if is_dev:
+        resp["otp"] = phone_otp
+        resp["message"] = f"Development mode: Your phone OTP is {phone_otp}"
+    return resp
+
 
 @router.post("/login", response_model=LoginResponse)
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
@@ -368,8 +437,7 @@ async def resend_verification_phone(
     db.add(db_phone_token)
     db.commit()
     
-    # Send verification SMS
-    send_verification_sms(current_user.phone, phone_otp)
+    dispatch_phone_verification_otp(current_user.phone, phone_otp)
     
     # In development, return the OTP so user can verify
     is_dev = settings.secret_key == "your-secret-key-change-in-production"

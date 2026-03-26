@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import AdminLayout from '@/components/admin/AdminLayout'
 import UserManagementPanel from '@/components/admin/UserManagementPanel'
+import DatabaseExplorerPanel from '@/components/admin/DatabaseExplorerPanel'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-const VALID_TABS = ['stats', 'roles', 'users', 'admins'] as const
+const VALID_TABS = ['stats', 'roles', 'users', 'admins', 'db'] as const
 type TabType = (typeof VALID_TABS)[number]
 
 type Stats = {
@@ -185,6 +186,7 @@ export default function AdminDashboard() {
           ['users',  'User Management'],
           ['admins', 'Admin Accounts'],
           ['roles',  'Roles & Permissions'],
+          ['db',     'DB Tables'],
         ] as [TabType, string][]).map(([key, label]) => (
           <button
             key={key}
@@ -303,6 +305,19 @@ export default function AdminDashboard() {
             <p className="text-sm text-stone-500">Manage administrator accounts, assign roles, and control admin access.</p>
           </div>
           <UserManagementPanel showAdmins />
+        </div>
+      )}
+
+      {/* DB Tables tab */}
+      {tab === 'db' && (
+        <div>
+          <div className="mb-4">
+            <h2 className="font-cinzel text-lg font-semibold text-sacred-700">Database Explorer</h2>
+            <p className="text-sm text-stone-500">
+              Browse tables/rows and edit values using primary keys.
+            </p>
+          </div>
+          <DatabaseExplorerPanel />
         </div>
       )}
 

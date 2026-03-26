@@ -1,11 +1,15 @@
 """
-SMS service for sending verification OTPs
-Uses Brevo Transactional SMS API (same account as email)
+Phone verification OTPs via Brevo: transactional SMS and/or WhatsApp (Meta templates).
+See backend/EMAIL_SMS_SETUP.md for Brevo dashboard setup.
 """
 import os
 import re
+from typing import Optional
+
 import httpx
 from app.config import settings
+
+BREVO_WHATSAPP_URL = "https://api.brevo.com/v3/whatsapp/sendMessage"
 
 
 def normalize_phone_for_brevo(phone: str) -> str:
@@ -24,6 +28,99 @@ def normalize_phone_for_brevo(phone: str) -> str:
     if len(phone) == 10:
         phone = '91' + phone
     return phone
+
+
+def _whatsapp_otp_configured() -> bool:
+    tid: Optional[int] = getattr(settings, "brevo_whatsapp_otp_template_id", None)
+    sender = (getattr(settings, "brevo_whatsapp_sender_number", "") or "").strip()
+    return bool(sender and tid)
+
+
+def send_verification_whatsapp(to_phone: str, otp: str) -> bool:
+    """
+    Send OTP using Brevo WhatsApp API (approved Meta template required).
+    Template must expose a transactional variable matching brevo_whatsapp_otp_param (default OTP).
+    """
+    api_key = os.getenv("BREVO_API_KEY", "") or getattr(settings, "brevo_api_key", "")
+    sender = (getattr(settings, "brevo_whatsapp_sender_number", "") or "").strip()
+    tid = getattr(settings, "brevo_whatsapp_otp_template_id", None)
+    param_name = (getattr(settings, "brevo_whatsapp_otp_param", None) or "OTP").strip() or "OTP"
+
+    if not api_key or not api_key.strip():
+        print(f"\n{'='*60}")
+        print("DEVELOPMENT MODE - WhatsApp Verification (Brevo API key not set)")
+        print(f"To: {to_phone}")
+        print(f"OTP Code: {otp}")
+        print(f"{'='*60}\n")
+        return True
+
+    if not sender or not tid:
+        print(
+            "WhatsApp OTP skipped: set BREVO_WHATSAPP_SENDER_NUMBER and "
+            "BREVO_WHATSAPP_OTP_TEMPLATE_ID (see EMAIL_SMS_SETUP.md)."
+        )
+        if settings.secret_key == "your-secret-key-change-in-production":
+            print(f"DEVELOPMENT MODE - OTP: {otp}")
+            return True
+        return False
+
+    recipient = normalize_phone_for_brevo(to_phone)
+    payload = {
+        "contactNumbers": [recipient],
+        "senderNumber": sender,
+        "templateId": int(tid),
+        "params": {param_name: otp},
+    }
+
+    try:
+        with httpx.Client(timeout=20.0) as client:
+            r = client.post(
+                BREVO_WHATSAPP_URL,
+                headers={"api-key": api_key.strip(), "Content-Type": "application/json"},
+                json=payload,
+            )
+        if r.status_code in (200, 201):
+            print(f"✅ Verification WhatsApp sent to {recipient} via Brevo (template {tid})")
+            return True
+        print(f"❌ Brevo WhatsApp API error {r.status_code}: {r.text}")
+        if settings.secret_key == "your-secret-key-change-in-production":
+            print(f"DEVELOPMENT MODE - OTP: {otp}")
+            return True
+        return False
+    except Exception as e:
+        print(f"❌ Error sending verification WhatsApp to {to_phone}: {e}")
+        if settings.secret_key == "your-secret-key-change-in-production":
+            print(f"DEVELOPMENT MODE - OTP: {otp}")
+            return True
+        return False
+
+
+def dispatch_phone_verification_otp(to_phone: str, otp: str) -> bool:
+    """
+    Send OTP per PHONE_VERIFICATION_CHANNEL: sms | whatsapp | both.
+    Falls back to SMS if channel asks for WhatsApp but WhatsApp env is incomplete.
+    """
+    ch = (
+        os.getenv("PHONE_VERIFICATION_CHANNEL", "").strip()
+        or getattr(settings, "phone_verification_channel", "sms")
+        or "sms"
+    ).lower()
+    if ch not in ("sms", "whatsapp", "both"):
+        ch = "sms"
+
+    if ch == "whatsapp" and not _whatsapp_otp_configured():
+        print("[phone verification] WhatsApp not fully configured; falling back to SMS.")
+        ch = "sms"
+    elif ch == "both" and not _whatsapp_otp_configured():
+        print("[phone verification] WhatsApp not fully configured; sending SMS only.")
+        ch = "sms"
+
+    ok = False
+    if ch in ("sms", "both"):
+        ok = send_verification_sms(to_phone, otp) or ok
+    if ch in ("whatsapp", "both"):
+        ok = send_verification_whatsapp(to_phone, otp) or ok
+    return ok
 
 
 def send_verification_sms(to_phone: str, otp: str) -> bool:

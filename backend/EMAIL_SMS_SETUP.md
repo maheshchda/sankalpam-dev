@@ -47,23 +47,86 @@ EMAIL_FROM=noreply@yourdomain.com
 FRONTEND_URL=http://localhost:3000
 ```
 
-## SMS Configuration (Brevo)
+## SMS configuration (Brevo transactional SMS)
 
-The application uses Brevo Transactional SMS (same account as email) to send verification OTPs.
+The app sends **phone OTPs** with Brevo’s **Transactional SMS** API (`POST /v3/transactionalSMS/send`). Same **API key** as email (REST), not the SMTP password.
 
-### Brevo SMS Setup
+### In the Brevo dashboard
 
-1. **Use your existing Brevo account** (same as email)
-2. **Get your API key** from Brevo: Settings → SMTP & API → API Keys
-3. **Enable Transactional SMS** in your Brevo account (may require activation)
-4. **Add to `.env` file**:
+1. Log in at [brevo.com](https://www.brevo.com).
+2. **API key:** **Settings → SMTP & API → API Keys** → create/copy a key with permission to send SMS (v3 APIs).
+3. **Enable SMS:** **Marketing → SMS** (or **Transactional SMS** in your plan). Complete any **sender registration** / compliance steps Brevo requires for your country (India: DLT/template rules may apply—follow Brevo’s wizard).
+4. **Credits:** **Settings → Plan & Billing** (or SMS section)—ensure you have **SMS credits**.
+5. **Sender name:** Alphanumeric label (max **11** characters), e.g. `Sankalpam`. Must be allowed in your Brevo SMS settings.
+
+### Environment variables
+
 ```env
 BREVO_API_KEY=your-brevo-api-key
 SMS_SENDER=Sankalpam
+# Optional: default is sms. Use whatsapp or both after WhatsApp is configured (below).
+# PHONE_VERIFICATION_CHANNEL=sms
 ```
 
-- `BREVO_API_KEY`: Your Brevo API key (same key used for other Brevo API features)
-- `SMS_SENDER`: Sender name shown in SMS (max 11 alphanumeric chars, e.g. "Sankalpam")
+| Variable | Purpose |
+|----------|---------|
+| `BREVO_API_KEY` | REST API key (Settings → API Keys) |
+| `SMS_SENDER` | SMS originator name (≤11 chars) |
+| `PHONE_VERIFICATION_CHANNEL` | `sms` (default) \| `whatsapp` \| `both` |
+
+### Verify SMS
+
+- Register or use **Resend phone OTP** and watch the **backend logs**: success prints `Verification SMS sent ... via Brevo`; errors print `Brevo SMS API error` with status/body.
+- Numbers are normalized to **digits + country code** (10-digit India → `91` prefix). Use a real handset for testing.
+
+---
+
+## WhatsApp configuration (Brevo + Meta)
+
+OTP over **WhatsApp** uses Brevo’s **transactional WhatsApp** API (`POST /v3/whatsapp/sendMessage`). This is **not** plain SMS; you need a **WhatsApp Business** number connected in Brevo and a **Meta-approved message template** that includes a variable for the OTP.
+
+### In Brevo (high level)
+
+1. **Connect WhatsApp:** Brevo docs: [Activating WhatsApp](https://developers.brevo.com/docs/whatsapp-campaigns-1) / in-app **Conversations → WhatsApp** (wording may vary). Complete **Meta Business** verification if prompted.
+2. **Note your WhatsApp number** as Brevo shows it (with country code, digits only for the API), e.g. `919876543210`.
+3. **Create a template** in Brevo/Meta for OTP (category typically **Authentication** or **Utility**, per Meta rules). Example body:  
+   `Your Sankalpam code is {{OTP}}. Valid 10 minutes.`  
+   Use **one** variable whose name you will map in env (below). Wait until Meta **approves** the template.
+4. Copy the **template ID** Brevo exposes for API use (integer).
+
+### In this app
+
+Map the template variable name **exactly** to `BREVO_WHATSAPP_OTP_PARAM` (default `OTP`). The app sends:
+
+`params: { "<BREVO_WHATSAPP_OTP_PARAM>": "<6-digit otp>" }`
+
+```env
+BREVO_API_KEY=your-brevo-api-key
+PHONE_VERIFICATION_CHANNEL=whatsapp
+# or both — sends SMS + WhatsApp when both are configured
+
+BREVO_WHATSAPP_SENDER_NUMBER=919876543210
+BREVO_WHATSAPP_OTP_TEMPLATE_ID=123456
+BREVO_WHATSAPP_OTP_PARAM=OTP
+```
+
+| Variable | Purpose |
+|----------|---------|
+| `BREVO_WHATSAPP_SENDER_NUMBER` | Your Brevo-connected WA number, digits only (with country code) |
+| `BREVO_WHATSAPP_OTP_TEMPLATE_ID` | Integer template ID from Brevo |
+| `BREVO_WHATSAPP_OTP_PARAM` | Template variable name for the OTP (default `OTP`) |
+
+If `PHONE_VERIFICATION_CHANNEL` is `whatsapp` or `both` but WhatsApp env is incomplete, the app **logs a fallback** and uses **SMS only** (if SMS is configured).
+
+### Verify WhatsApp
+
+- Trigger OTP; check logs for `Verification WhatsApp sent ... via Brevo` or `Brevo WhatsApp API error` with response body.
+- **First message** to a user must be **template-based** (this flow always uses a template).
+
+### Official references
+
+- [Transactional SMS](https://developers.brevo.com/docs/transactional-sms-endpoints)  
+- [Send WhatsApp message](https://developers.brevo.com/reference/send-whatsapp-message)
 
 ## Development Mode
 

@@ -33,7 +33,7 @@ async def main():
         # US Central time
         timezone_offset_hours = -6.0
 
-        sankalpam_text = await generate_sankalpam(
+        sankalpam_text, _highlight_names = await generate_sankalpam(
             user=user,
             family_members=family_members,
             location_city=location_city,

@@ -1,13 +1,25 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from sqlalchemy import (
+    inspect as sqla_inspect,
+    MetaData,
+    Table,
+    select,
+    and_,
+    update as sql_update,
+    delete as sql_delete,
+    types as sqltypes,
+)
+from typing import List, Optional, Any, Dict
 import json
 import secrets
 import string
+import enum
+import decimal
 from datetime import datetime, timedelta
 
-from app.database import get_db
+from app.database import get_db, engine
 from app.models import (
     User, Pooja, SankalpamTemplate, Language, PoojaSession,
     AdminRole, UserAdminRole, ALL_PERMISSIONS, PERMISSION_CODES,
@@ -829,6 +841,322 @@ async def delete_template(
         raise HTTPException(status_code=404, detail="Template not found")
     db.delete(template); db.commit()
     return None
+
+
+# ── Database explorer (PHPMyAdmin-like) ────────────────────────────────────
+
+DB_EXCLUDED_TABLES = {"alembic_version"}
+
+# Never allow editing sensitive columns through the generic editor.
+def _is_blocked_edit_column(column_name: str) -> bool:
+    name = (column_name or "").lower()
+    if name == "hashed_password":
+        return True
+    if "token" in name:
+        return True
+    return False
+
+
+def _jsonify_db_value(val: Any) -> Any:
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        return val.isoformat()
+    if isinstance(val, enum.Enum):
+        return val.value
+    if isinstance(val, decimal.Decimal):
+        return str(val)
+    return val
+
+
+def _coerce_cell_value(column_name: str, column_type: Any, raw: Any) -> Any:
+    """
+    Best-effort coercion for common SQL types.
+    For complex types (json/text blobs), we keep as-is (string).
+    """
+    if raw is None:
+        return None
+
+    if isinstance(raw, str):
+        s = raw.strip()
+        if s == "":
+            return None
+    else:
+        s = raw
+
+    if isinstance(column_type, sqltypes.Boolean):
+        if isinstance(raw, bool):
+            return raw
+        if isinstance(raw, (int, float)):
+            return bool(raw)
+        sval = str(raw).strip().lower()
+        return sval in {"1", "true", "t", "yes", "y"}
+
+    if isinstance(column_type, (sqltypes.Integer, sqltypes.BigInteger, sqltypes.SmallInteger)):
+        return int(raw)
+
+    if isinstance(column_type, (sqltypes.Float,)):
+        return float(raw)
+
+    if isinstance(column_type, sqltypes.Numeric):
+        return decimal.Decimal(str(raw))
+
+    if isinstance(column_type, sqltypes.DateTime):
+        if isinstance(raw, datetime):
+            return raw
+        if isinstance(raw, str):
+            try:
+                return datetime.fromisoformat(raw)
+            except ValueError:
+                return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+
+    # Enums and other types: pass through.
+    return raw
+
+
+def _truncate_cell_value(val: Any, max_len: int) -> Any:
+    if val is None:
+        return None
+    if isinstance(val, str) and len(val) > max_len:
+        return val[:max_len] + "…"
+    return val
+
+
+def _validate_table_name(table_name: str, current_tables: set[str]) -> None:
+    if table_name not in current_tables:
+        raise HTTPException(status_code=404, detail="Table not found")
+
+
+class DbRowPk(BaseModel):
+    pk: Dict[str, Any]
+
+
+class DbRowUpdate(BaseModel):
+    pk: Dict[str, Any]
+    values: Dict[str, Any]
+
+
+@router.get("/db/tables")
+async def list_db_tables(
+    current_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    _check_permission(current_user, "db_table_management", db)
+    inspector = sqla_inspect(engine)
+    tables = inspector.get_table_names()
+    tables = [t for t in tables if t not in DB_EXCLUDED_TABLES]
+    tables.sort()
+    return {"tables": tables}
+
+
+@router.get("/db/tables/{table_name}/meta")
+async def db_table_meta(
+    table_name: str,
+    current_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    _check_permission(current_user, "db_table_management", db)
+    inspector = sqla_inspect(engine)
+    current_tables = set(inspector.get_table_names())
+    current_tables = {t for t in current_tables if t not in DB_EXCLUDED_TABLES}
+    _validate_table_name(table_name, current_tables)
+
+    pk_constraint = inspector.get_pk_constraint(table_name) or {}
+    pk_cols = pk_constraint.get("constrained_columns") or []
+
+    columns_raw = inspector.get_columns(table_name)
+    columns = []
+    for c in columns_raw:
+        col_name = c.get("name")
+        col_type = c.get("type")
+        editable = (col_name not in pk_cols) and (not _is_blocked_edit_column(col_name or ""))
+        columns.append({
+            "name": col_name,
+            "sql_type": str(col_type),
+            "is_primary_key": col_name in pk_cols,
+            "is_editable": editable,
+        })
+
+    return {
+        "table": table_name,
+        "primary_key": pk_cols,
+        "columns": columns,
+    }
+
+
+@router.get("/db/tables/{table_name}/rows")
+async def db_table_rows(
+    table_name: str,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    max_cell_length: int = Query(250, ge=50, le=2000),
+    current_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    _check_permission(current_user, "db_table_management", db)
+    inspector = sqla_inspect(engine)
+    current_tables = set(inspector.get_table_names())
+    current_tables = {t for t in current_tables if t not in DB_EXCLUDED_TABLES}
+    _validate_table_name(table_name, current_tables)
+
+    metadata = MetaData()
+    tbl = Table(table_name, metadata, autoload_with=engine)
+    pk_cols = [c.name for c in tbl.primary_key.columns]
+
+    rows = db.execute(select(tbl).limit(limit).offset(offset)).mappings().all()
+    out_rows: list[dict[str, Any]] = []
+    for r in rows:
+        obj: dict[str, Any] = {}
+        for col in tbl.columns:
+            v = r[col.name]
+            v = _jsonify_db_value(v)
+            v = _truncate_cell_value(v, max_cell_length)
+            obj[col.name] = v
+        out_rows.append(obj)
+
+    return {
+        "table": table_name,
+        "primary_key": pk_cols,
+        "offset": offset,
+        "limit": limit,
+        "rows": out_rows,
+    }
+
+
+@router.post("/db/tables/{table_name}/row")
+async def db_fetch_full_row(
+    table_name: str,
+    body: DbRowPk,
+    current_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    _check_permission(current_user, "db_table_management", db)
+    inspector = sqla_inspect(engine)
+    current_tables = set(inspector.get_table_names())
+    current_tables = {t for t in current_tables if t not in DB_EXCLUDED_TABLES}
+    _validate_table_name(table_name, current_tables)
+
+    metadata = MetaData()
+    tbl = Table(table_name, metadata, autoload_with=engine)
+    pk_cols = [c.name for c in tbl.primary_key.columns]
+    if not pk_cols:
+        raise HTTPException(status_code=400, detail="Table has no primary key")
+
+    missing = [c for c in pk_cols if c not in body.pk]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Missing PK fields: {missing}")
+
+    where = and_(*[
+        tbl.c[pk] == _coerce_cell_value(pk, tbl.c[pk].type, body.pk[pk])
+        for pk in pk_cols
+    ])
+
+    row = db.execute(select(tbl).where(where)).mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Row not found")
+
+    values: dict[str, Any] = {}
+    for col in tbl.columns:
+        values[col.name] = _jsonify_db_value(row[col.name])
+
+    return {
+        "table": table_name,
+        "primary_key": pk_cols,
+        "values": values,
+    }
+
+
+@router.patch("/db/tables/{table_name}/row")
+async def db_update_row(
+    table_name: str,
+    body: DbRowUpdate,
+    current_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    _check_permission(current_user, "db_table_management", db)
+    inspector = sqla_inspect(engine)
+    current_tables = set(inspector.get_table_names())
+    current_tables = {t for t in current_tables if t not in DB_EXCLUDED_TABLES}
+    _validate_table_name(table_name, current_tables)
+
+    metadata = MetaData()
+    tbl = Table(table_name, metadata, autoload_with=engine)
+    pk_cols = [c.name for c in tbl.primary_key.columns]
+    if not pk_cols:
+        raise HTTPException(status_code=400, detail="Table has no primary key (update blocked)")
+
+    # Validate PK
+    missing = [c for c in pk_cols if c not in body.pk]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Missing PK fields: {missing}")
+
+    # Validate editable columns
+    values: dict[str, Any] = {}
+    for col_name, raw in (body.values or {}).items():
+        if col_name in pk_cols:
+            raise HTTPException(status_code=400, detail=f"Editing primary key column '{col_name}' is not allowed")
+        if col_name not in tbl.c:
+            raise HTTPException(status_code=400, detail=f"Unknown column '{col_name}'")
+        if _is_blocked_edit_column(col_name):
+            raise HTTPException(status_code=403, detail=f"Editing blocked column '{col_name}' is not allowed")
+
+        values[col_name] = _coerce_cell_value(col_name, tbl.c[col_name].type, raw)
+
+    if not values:
+        raise HTTPException(status_code=400, detail="No valid editable columns supplied")
+
+    # Build WHERE from PK columns
+    where = and_(*[
+        tbl.c[pk] == _coerce_cell_value(pk, tbl.c[pk].type, body.pk[pk])
+        for pk in pk_cols
+    ])
+
+    stmt = sql_update(tbl).where(where).values(values)
+    db.execute(stmt)
+    db.commit()
+
+    updated = db.execute(select(tbl).where(where)).mappings().first()
+    if not updated:
+        raise HTTPException(status_code=404, detail="Row not found after update")
+
+    updated_values: dict[str, Any] = {}
+    for col in tbl.columns:
+        updated_values[col.name] = _jsonify_db_value(updated[col.name])
+
+    return {"table": table_name, "primary_key": pk_cols, "values": updated_values}
+
+
+@router.post("/db/tables/{table_name}/row/delete")
+async def db_delete_row(
+    table_name: str,
+    body: DbRowPk,
+    current_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    _check_permission(current_user, "db_table_management", db)
+    inspector = sqla_inspect(engine)
+    current_tables = set(inspector.get_table_names())
+    current_tables = {t for t in current_tables if t not in DB_EXCLUDED_TABLES}
+    _validate_table_name(table_name, current_tables)
+
+    metadata = MetaData()
+    tbl = Table(table_name, metadata, autoload_with=engine)
+    pk_cols = [c.name for c in tbl.primary_key.columns]
+    if not pk_cols:
+        raise HTTPException(status_code=400, detail="Table has no primary key (delete blocked)")
+
+    missing = [c for c in pk_cols if c not in body.pk]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Missing PK fields: {missing}")
+
+    where = and_(*[
+        tbl.c[pk] == _coerce_cell_value(pk, tbl.c[pk].type, body.pk[pk])
+        for pk in pk_cols
+    ])
+
+    db.execute(sql_delete(tbl).where(where))
+    db.commit()
+    return {"deleted": True}
 
 
 # ── Internal email helper ─────────────────────────────────────────────────────

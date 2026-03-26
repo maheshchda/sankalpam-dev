@@ -11,18 +11,18 @@ type DeityCard = {
 }
 
 const DEITY_CARDS: DeityCard[] = [
-  { name: 'Ganesha', image: '/images/deities/ganesha.svg' },
-  { name: 'Lakshmi', image: '/images/deities/lakshmi.svg' },
-  { name: 'Saraswati', image: '/images/deities/saraswati.svg' },
+  { name: 'Ganesha', image: '/images/deities/ganesha.png' },
+  { name: 'Lakshmi', image: '/images/deities/lakshmi.png' },
+  { name: 'Saraswati', image: '/images/deities/saraswati.jpg' },
   { name: 'Shiva', image: '/images/deities/shiva.svg' },
   { name: 'Durga', image: '/images/deities/durga.svg' },
-  { name: 'Venkateswara', image: '/images/deities/venkateswara.svg' },
+  { name: 'Venkateswara', image: '/images/deities/venkateswara.png' },
   { name: 'Subramanya', image: '/images/deities/subramanya.svg' },
   { name: 'Dattatreya', image: '/images/deities/dattatreya.svg' },
   { name: 'Gorakhnath', image: '/images/deities/gorakhnath.svg' },
   { name: 'Sri Rama', image: '/images/deities/rama.svg' },
   { name: 'Sri Krishna', image: '/images/deities/krishna.svg' },
-  { name: 'Hanuman', image: '/images/deities/hanuman.svg' },
+  { name: 'Hanuman', image: '/images/deities/hanuman.png' },
   { name: 'Vishnu', image: '/images/deities/vishnu.svg' },
   { name: 'Khatu Shyam Ji', image: '/images/deities/khatushyam.svg' },
 ]
@@ -66,7 +66,13 @@ export default function Home() {
               key={deity.name}
               className="sacred-card overflow-hidden hover:shadow-xl transition-shadow"
             >
-              <img src={deity.image} alt={deity.name} className="h-56 w-full object-cover" />
+              <div className="h-56 w-full bg-cream-100 flex items-center justify-center">
+                <img
+                  src={deity.image}
+                  alt={deity.name}
+                  className="h-full w-full object-contain"
+                />
+              </div>
               <div className="p-4 bg-cream-100">
                 <p className="font-cinzel text-lg font-bold text-sacred-700">{deity.name}</p>
               </div>

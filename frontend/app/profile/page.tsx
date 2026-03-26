@@ -103,6 +103,8 @@ export default function ProfilePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [phoneInput, setPhoneInput] = useState('')
+  const [phoneSaving, setPhoneSaving] = useState(false)
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -156,6 +158,7 @@ export default function ProfilePage() {
         current_state: user.current_state || '',
         current_country: user.current_country || '',
       })
+      setPhoneInput((user as any).phone || '')
       // Sync current-address dropdown codes from profile
       const cc = (user.current_country || '').trim()
       if (cc) {
@@ -215,6 +218,7 @@ export default function ProfilePage() {
           current_state: updated.current_state || '',
           current_country: updated.current_country || '',
         })
+        setPhoneInput(updated.phone || '')
         if (updated.current_country) {
           const m = Country.getAllCountries().find((c) => c.name.toLowerCase() === (updated.current_country || '').toLowerCase())
           if (m) {
@@ -289,6 +293,7 @@ export default function ProfilePage() {
             <div className="text-sm text-stone-500 sm:text-right space-y-1">
               <div>Username: {user.username}</div>
               <div>Email: {user.email}</div>
+              <div>Phone: {(user as any).phone || '—'}</div>
               <div className="flex items-center gap-2 justify-end">
                 <span>Unique ID: {user.unique_id || '—'}</span>
                 {user.unique_id && (
@@ -397,6 +402,66 @@ export default function ProfilePage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Phone (optional; saved separately from /api/users/me) */}
+            <div className="border-b pb-4">
+              <h3 className="text-lg font-medium mb-4">Phone (Optional)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Phone number</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="e.g. 919876543210"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                    value={phoneInput}
+                    onChange={(e) => setPhoneInput(e.target.value)}
+                  />
+                  <p className="mt-1 text-xs text-stone-500">
+                    Add your phone to receive an OTP for verification. Changing the phone resets verification.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={phoneSaving}
+                    onClick={async () => {
+                      try {
+                        setPhoneSaving(true)
+                        const value = (phoneInput || '').trim()
+                        if (!value) {
+                          toast.info('Enter a phone number to save.')
+                          return
+                        }
+                        const res = await api.post('/api/auth/update-phone', { phone: value })
+                        if (res.data?.otp) {
+                          toast.success(
+                            `Development mode: Your phone OTP is ${res.data.otp}. Use it on the verify page.`,
+                            { autoClose: 10000 }
+                          )
+                        } else {
+                          toast.success(res.data?.message || 'Verification code sent')
+                        }
+                        if (refreshUser) await refreshUser()
+                      } catch (error: any) {
+                        toast.error(error.response?.data?.detail || 'Failed to update phone number')
+                      } finally {
+                        setPhoneSaving(false)
+                      }
+                    }}
+                    className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50"
+                  >
+                    Save & Send OTP
+                  </button>
+                  <Link
+                    href="/verify"
+                    className="px-4 py-2 bg-stone-200 text-stone-700 rounded hover:bg-stone-300"
+                  >
+                    Verify
+                  </Link>
+                </div>
+              </div>
+            </div>
+
             {/* Personal Information */}
             <div className="border-b pb-4">
               <h3 className="text-lg font-medium mb-4">Personal Information</h3>
