@@ -43,7 +43,6 @@ const CALENDAR_INJECT_FALLBACK_SLUG: Record<string, string> = {
   'গণেশ পূজা': 'ganesha-pooja',
   'ଗଣେଶ ପୂଜା': 'ganesha-pooja',
   'ਗਣੇਸ਼ ਪੂਜਾ': 'ganesha-pooja',
-  'গণেশ পূজা': 'ganesha-pooja',
   // Common inject (name_map)
   'పౌర్ణిమ పూజ / సత్యనారాయణ పూజ': 'purnima-pooja-satyanarayan-pooja',
   'ప్రదోష శివ పూజ': 'pradosha-shiva-pooja',
