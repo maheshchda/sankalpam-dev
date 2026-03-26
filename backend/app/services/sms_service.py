@@ -15,7 +15,7 @@ BREVO_WHATSAPP_URL = "https://api.brevo.com/v3/whatsapp/sendMessage"
 def normalize_phone_for_brevo(phone: str) -> str:
     """
     Normalize phone number for Brevo SMS API (digits only, with country code).
-    Assumes Indian numbers if no country code is present.
+    Supports explicit international numbers and applies a fallback for local 10-digit input.
 
     Returns:
         Phone number as digits only, e.g. 919876543210
@@ -25,8 +25,18 @@ def normalize_phone_for_brevo(phone: str) -> str:
         phone = phone[1:]
     if phone.startswith('0'):
         phone = phone[1:]
+    # Already has country code (E.164 digits-only length is usually 11-15)
+    if len(phone) >= 11:
+        return phone
+
     if len(phone) == 10:
-        phone = '91' + phone
+        # Heuristic for local input without +country code:
+        # - Indian mobiles typically start 6-9 -> prefix 91
+        # - Otherwise treat as NANP/US -> prefix 1
+        if phone[0] in ("6", "7", "8", "9"):
+            phone = "91" + phone
+        else:
+            phone = "1" + phone
     return phone
 
 

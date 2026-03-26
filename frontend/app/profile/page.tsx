@@ -71,6 +71,25 @@ const RAASIS = [
 ]
 
 const PADAS = ['1', '2', '3', '4']
+const DEFAULT_PHONE_COUNTRY_CODE = '91'
+
+function splitStoredPhone(raw: string): { countryCode: string; localNumber: string } {
+  const digits = (raw || '').replace(/\D/g, '')
+  if (!digits) return { countryCode: DEFAULT_PHONE_COUNTRY_CODE, localNumber: '' }
+
+  // Backward-compatible parsing for existing saved values.
+  if (digits.length === 10) {
+    return { countryCode: DEFAULT_PHONE_COUNTRY_CODE, localNumber: digits }
+  }
+  if (digits.startsWith('91') && digits.length > 10) {
+    return { countryCode: '91', localNumber: digits.slice(2) }
+  }
+  if (digits.startsWith('1') && digits.length > 10) {
+    return { countryCode: '1', localNumber: digits.slice(1) }
+  }
+
+  return { countryCode: DEFAULT_PHONE_COUNTRY_CODE, localNumber: digits }
+}
 
 // Current Address: same labels as Pooja page (State / Province / Region by country)
 const CURRENT_ADDRESS_LABELS = {
@@ -103,7 +122,8 @@ export default function ProfilePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const [phoneInput, setPhoneInput] = useState('')
+  const [phoneCountryCode, setPhoneCountryCode] = useState(DEFAULT_PHONE_COUNTRY_CODE)
+  const [phoneLocalNumber, setPhoneLocalNumber] = useState('')
   const [phoneSaving, setPhoneSaving] = useState(false)
   const [formData, setFormData] = useState({
     first_name: '',
@@ -130,6 +150,25 @@ export default function ProfilePage() {
     [currentCountryCode]
   )
   const hasCurrentStates = currentStates.length > 0
+  const phoneCountryOptions = useMemo(() => {
+    const seen = new Set<string>()
+    const options = Country.getAllCountries()
+      .map((c) => {
+        const code = String(c.phonecode || '').replace(/\D/g, '')
+        if (!code || seen.has(code)) return null
+        seen.add(code)
+        return { value: code, label: `+${code} (${c.name})` }
+      })
+      .filter((opt): opt is { value: string; label: string } => Boolean(opt))
+
+    options.sort((a, b) => a.value.localeCompare(b.value))
+    const indiaIndex = options.findIndex((opt) => opt.value === DEFAULT_PHONE_COUNTRY_CODE)
+    if (indiaIndex > 0) {
+      const [india] = options.splice(indiaIndex, 1)
+      options.unshift(india)
+    }
+    return options
+  }, [])
 
   useEffect(() => {
     setMounted(true)
@@ -158,7 +197,9 @@ export default function ProfilePage() {
         current_state: user.current_state || '',
         current_country: user.current_country || '',
       })
-      setPhoneInput((user as any).phone || '')
+      const parsedPhone = splitStoredPhone((user as any).phone || '')
+      setPhoneCountryCode(parsedPhone.countryCode)
+      setPhoneLocalNumber(parsedPhone.localNumber)
       // Sync current-address dropdown codes from profile
       const cc = (user.current_country || '').trim()
       if (cc) {
@@ -218,7 +259,9 @@ export default function ProfilePage() {
           current_state: updated.current_state || '',
           current_country: updated.current_country || '',
         })
-        setPhoneInput(updated.phone || '')
+        const parsedPhone = splitStoredPhone(updated.phone || '')
+        setPhoneCountryCode(parsedPhone.countryCode)
+        setPhoneLocalNumber(parsedPhone.localNumber)
         if (updated.current_country) {
           const m = Country.getAllCountries().find((c) => c.name.toLowerCase() === (updated.current_country || '').toLowerCase())
           if (m) {
@@ -407,17 +450,32 @@ export default function ProfilePage() {
               <h3 className="text-lg font-medium mb-4">Phone (Optional)</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                 <div>
+                  <label className="block text-sm font-medium text-gray-700">Country code</label>
+                  <select
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                    value={phoneCountryCode}
+                    onChange={(e) => setPhoneCountryCode((e.target.value || '').replace(/\D/g, ''))}
+                  >
+                    {phoneCountryOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700">Phone number</label>
                   <input
                     type="tel"
                     name="phone"
-                    placeholder="e.g. 919876543210"
+                    inputMode="numeric"
+                    placeholder="e.g. 9876543210"
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                    value={phoneInput}
-                    onChange={(e) => setPhoneInput(e.target.value)}
+                    value={phoneLocalNumber}
+                    onChange={(e) => setPhoneLocalNumber((e.target.value || '').replace(/\D/g, ''))}
                   />
                   <p className="mt-1 text-xs text-stone-500">
-                    Add your phone to receive an OTP for verification. Changing the phone resets verification.
+                    Enter number without + sign. We will send OTP to +{phoneCountryCode}{phoneLocalNumber || 'XXXXXXXXXX'}.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -427,11 +485,17 @@ export default function ProfilePage() {
                     onClick={async () => {
                       try {
                         setPhoneSaving(true)
-                        const value = (phoneInput || '').trim()
-                        if (!value) {
+                        const countryCode = (phoneCountryCode || DEFAULT_PHONE_COUNTRY_CODE).replace(/\D/g, '')
+                        const localNumber = (phoneLocalNumber || '').replace(/\D/g, '')
+                        if (!localNumber) {
                           toast.info('Enter a phone number to save.')
                           return
                         }
+                        if (localNumber.length < 6 || localNumber.length > 15) {
+                          toast.info('Enter a valid phone number.')
+                          return
+                        }
+                        const value = `${countryCode}${localNumber}`
                         const res = await api.post('/api/auth/update-phone', { phone: value })
                         if (res.data?.otp) {
                           toast.success(

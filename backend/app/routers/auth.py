@@ -12,16 +12,15 @@ from app.auth import verify_password, get_password_hash, create_access_token
 from app.dependencies import get_current_user
 from app.config import settings
 from app.services.email_service import send_verification_email, send_password_reset_email
-from app.services.sms_service import dispatch_phone_verification_otp
+from app.services.sms_service import dispatch_phone_verification_otp, normalize_phone_for_brevo
 
 router = APIRouter()
 
 def _normalize_phone_input(phone: str) -> str:
-    """Basic normalization to digits (+ removed). Mirrors Brevo normalization expectations."""
+    """Normalize and store phone in country-code format (digits only)."""
     if not phone:
         return ""
-    digits = "".join(ch for ch in str(phone).strip() if ch.isdigit())
-    return digits
+    return normalize_phone_for_brevo(str(phone).strip())
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
