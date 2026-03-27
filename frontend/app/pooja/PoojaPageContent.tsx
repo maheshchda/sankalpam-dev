@@ -103,6 +103,7 @@ function preferredLanguageToCode(preferred: string | undefined): string {
 const POOJA_PAGE_LABELS: Record<string, Record<string, string>> = {
   appName: { en: 'Sankalpam', te: 'సంకల్పం' },
   backToDashboard: { en: 'Back to Dashboard', te: 'డాష్‌బోర్డ్‌కు తిరిగి' },
+  goBackToCalendar: { en: 'Go Back', te: 'వెనక్కి' },
   logout: { en: 'Logout', te: 'లాగౌట్' },
   location: { en: 'Location', te: 'స్థానం' },
   getCurrentLocation: { en: 'Get current location', te: 'ప్రస్తుత స్థానం పొందండి' },
@@ -289,6 +290,8 @@ type PoojaPageProps = {
   includedPooja?: 'ganesha' | 'lakshmi' | null
   /** From /pooja/[poojaSlug] or calendar — show only the pooja whose name slug matches */
   filterPoojaSlug?: string | null
+  /** From `?from=calendar` — prefer passing from /pooja/[slug] inside Suspense so the nav "Go Back" works */
+  fromCalendar?: boolean
 }
 
 function isGaneshaPooja(name: string): boolean {
@@ -308,9 +311,27 @@ function matchesIncludedPooja(name: string, includedPooja: 'ganesha' | 'lakshmi'
   return true
 }
 
-export function PoojaPageContent({ includedPooja = null, filterPoojaSlug = null }: PoojaPageProps) {
+export function PoojaPageContent({
+  includedPooja = null,
+  filterPoojaSlug = null,
+  fromCalendar: fromCalendarProp,
+}: PoojaPageProps) {
   const searchParams = useSearchParams()
+  const [fromCalendar, setFromCalendar] = useState(() =>
+    fromCalendarProp === true || fromCalendarProp === false ? fromCalendarProp : false
+  )
   const poojaSlugFromUrl = searchParams.get('pooja')
+
+  useEffect(() => {
+    if (fromCalendarProp === true || fromCalendarProp === false) {
+      setFromCalendar(fromCalendarProp)
+      return
+    }
+    const fromQuery =
+      searchParams.get('from') === 'calendar' ||
+      (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('from') === 'calendar')
+    setFromCalendar(fromQuery)
+  }, [fromCalendarProp, searchParams])
   const effectivePoojaSlug = filterPoojaSlug ?? poojaSlugFromUrl
   const { user, loading: authLoading, logout } = useAuth()
   const router = useRouter()
@@ -951,7 +972,15 @@ export function PoojaPageContent({ includedPooja = null, filterPoojaSlug = null 
             <Link href="/dashboard" className="text-2xl font-bold text-amber-600">
               {t('appName', sankalpamLanguageCode)}
             </Link>
-            <div className="flex items-center gap-2 sm:gap-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              {fromCalendar && (
+                <Link
+                  href="/pooja-calendar"
+                  className="px-3 py-2 text-sm font-medium rounded-md bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300"
+                >
+                  {t('goBackToCalendar', sankalpamLanguageCode)}
+                </Link>
+              )}
               <HomeButton variant="light" />
               <Link href="/dashboard" className="px-4 py-2 text-gray-700 hover:text-amber-600">
                 {t('backToDashboard', sankalpamLanguageCode)}

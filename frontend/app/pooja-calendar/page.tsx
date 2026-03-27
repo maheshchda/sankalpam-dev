@@ -421,7 +421,7 @@ export default function PoojaCalendarPage() {
                 </thead>
                 <tbody className="divide-y divide-cream-200">
                   {rows.map((row, i) => {
-                    const poojaPath = getLinkedPoojaPath(row)
+                    const poojaPath = `${getLinkedPoojaPath(row)}?from=calendar`
                     const rowSlug = resolveCalendarRowSlug(row)
                     const stopRowNav = (e: MouseEvent) => e.stopPropagation()
                     const openEnabled = isCalendarOpenPoojaEnabled(row, poojaAvailability)
@@ -465,7 +465,7 @@ export default function PoojaCalendarPage() {
                           )}
                           <Link
                             href={
-                              rowSlug ? `/pooja-readiness/${encodeURIComponent(rowSlug)}` : '#'
+                              rowSlug ? `/pooja-readiness/${encodeURIComponent(rowSlug)}?from=calendar` : '#'
                             }
                             onClick={stopRowNav}
                             className={`px-2 py-1 text-xs rounded ${
@@ -478,7 +478,7 @@ export default function PoojaCalendarPage() {
                             Readiness Info
                           </Link>
                           <Link
-                            href={rowSlug ? `/pooja-items/${encodeURIComponent(rowSlug)}` : '#'}
+                            href={rowSlug ? `/pooja-items/${encodeURIComponent(rowSlug)}?from=calendar` : '#'}
                             onClick={stopRowNav}
                             className={`px-2 py-1 text-xs rounded ${
                               rowSlug
