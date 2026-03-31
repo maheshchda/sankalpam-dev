@@ -8,7 +8,9 @@ from starlette.requests import Request
 from app.database import engine, Base, SessionLocal
 from app.routers import auth, users, family, pooja, sankalpam, admin, templates, pooja_calendar, panchang, schedule, rsvp, email_debug
 from app.config import settings
-from app.models import Pooja, AdminRole, UserAdminRole, User
+from app.services.template_service import identify_variables
+from app.models import Pooja, AdminRole, UserAdminRole, User, SankalpamTemplate, Language
+import importlib.util
 import json
 
 # Create tables on startup
@@ -131,6 +133,98 @@ async def lifespan(app: FastAPI):
                     assigned_by=super_admin_user.id,
                 ))
                 db.commit()
+
+        # Telugu generic DB row ↔ templates/telugu/sankalpam_template_telugu.py (preferred) or .txt
+        _GEN_SANKALPAM_NAME = "Generic Sankalpam"
+        _LEGACY_STANDARD_NAME = "Standard Sankalpam Template"
+        _te_dir = Path(__file__).parent / "templates" / "telugu"
+        _te_py = _te_dir / "sankalpam_template_telugu.py"
+        _te_txt = _te_dir / "sankalpam_template_telugu.txt"
+        template_text = ""
+        if _te_py.exists():
+            _spec = importlib.util.spec_from_file_location("sankalpam_template_telugu", _te_py)
+            if _spec and _spec.loader:
+                _mod = importlib.util.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                template_text = (getattr(_mod, "SANKALPAM_TEMPLATE_TELUGU", "") or "").strip()
+        if not template_text and _te_txt.exists():
+            template_text = _te_txt.read_text(encoding="utf-8").strip()
+        if template_text:
+                vars_json = json.dumps(identify_variables(template_text))
+                desc = (
+                    "Generic Sankalpam in Telugu script; body from sankalpam_template_telugu.py; "
+                    "panchang from Divine API for the selected location."
+                )
+
+                def _fill_te_generic(row: SankalpamTemplate) -> bool:
+                    changed = (
+                        row.template_text != template_text
+                        or row.variables != vars_json
+                        or (row.description or "") != desc
+                        or not row.is_active
+                    )
+                    row.template_text = template_text
+                    row.variables = vars_json
+                    row.description = desc
+                    row.is_active = True
+                    return changed
+
+                te_lang = Language.TELUGU
+                canonical = (
+                    db.query(SankalpamTemplate)
+                    .filter(
+                        SankalpamTemplate.name == _GEN_SANKALPAM_NAME,
+                        SankalpamTemplate.language == te_lang,
+                    )
+                    .first()
+                )
+                legacy_standard = (
+                    db.query(SankalpamTemplate)
+                    .filter(
+                        SankalpamTemplate.name == _LEGACY_STANDARD_NAME,
+                        SankalpamTemplate.language == te_lang,
+                    )
+                    .first()
+                )
+
+                if canonical:
+                    if _fill_te_generic(canonical):
+                        db.commit()
+                elif legacy_standard:
+                    legacy_standard.name = _GEN_SANKALPAM_NAME
+                    _fill_te_generic(legacy_standard)
+                    db.commit()
+                else:
+                    creator = (
+                        db.query(User).filter(User.username == "Admin_SKLPM").first()
+                        or db.query(User).first()
+                    )
+                    if creator:
+                        db.add(
+                            SankalpamTemplate(
+                                name=_GEN_SANKALPAM_NAME,
+                                description=desc,
+                                template_text=template_text,
+                                language=te_lang,
+                                variables=vars_json,
+                                created_by=creator.id,
+                                is_active=True,
+                            )
+                        )
+                        db.commit()
+
+                # If both names ever existed, drop the duplicate legacy row.
+                after = (
+                    db.query(SankalpamTemplate)
+                    .filter(
+                        SankalpamTemplate.name == _LEGACY_STANDARD_NAME,
+                        SankalpamTemplate.language == te_lang,
+                    )
+                    .first()
+                )
+                if after:
+                    after.is_active = False
+                    db.commit()
 
     finally:
         db.close()

@@ -113,8 +113,8 @@ export default function DashboardPage() {
               <Link href="/pooja-calendar" className="btn-glossy btn-glossy-blue block text-center">
                 Pooja Calendar
               </Link>
-              <Link href="/sankalpam" className="btn-glossy btn-glossy-purple block text-center">
-                Generate Sankalpam
+              <Link href="/sankalpam?autoGenerate=1" className="btn-glossy btn-glossy-purple block text-center">
+                Generic Sankalpam
               </Link>
             </div>
           </div>

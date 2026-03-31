@@ -3,31 +3,53 @@ Service to replace template variables with actual data from database and externa
 """
 from typing import Dict, Optional
 from datetime import datetime, time
-from app.models import User, FamilyMember
+from app.models import User, FamilyMember, Language
 from app.services.astronomical_service import get_astronomical_data
 from app.services.location_service import get_nearby_geographical_features
 import re
 
+
+def template_is_telugu(template_language: Optional[str]) -> bool:
+    """True when the sankalpam template language is Telugu (DB enum or ISO)."""
+    tl = (template_language or "").strip().lower()
+    if tl.startswith("language."):
+        tl = tl.split(".")[-1]
+    return tl in ("te", "telugu") or "telugu" in tl
+
+
+def is_telugu_template_language(
+    template_language: Optional[str],
+    language_enum: Optional[Language] = None,
+) -> bool:
+    """
+    Telugu template detection: prefer DB enum (handles str vs Enum from SQLAlchemy),
+    then string codes, then template text is not needed here.
+    """
+    if language_enum is not None:
+        if isinstance(language_enum, Language):
+            if language_enum == Language.TELUGU:
+                return True
+        else:
+            ev = str(language_enum).strip().lower()
+            if ev == Language.TELUGU.value or ev.endswith("telugu"):
+                return True
+    return template_is_telugu(template_language)
+
+
+# Zero-width / invisible chars inside pasted {{placeholders}} break dict lookup
+_PLACEHOLDER_INNER_NORM = re.compile(r"[\u200b-\u200d\ufeff\u2060]+")
+
+
 def replace_variables(text: str, variables: Dict[str, str]) -> str:
     """
-    Replace variables in text with actual values.
-    Variables in format {{variable_name}} will be replaced with values from the dictionary.
-    
-    Args:
-        text: Text with variables in {{variable_name}} format
-        variables: Dictionary mapping variable names to their values
-    
-    Returns:
-        Text with all variables replaced
+    Replace every {{name}} in the template; missing keys substitute to empty string.
     """
-    result = text
-    
-    for var_name, var_value in variables.items():
-        # Replace {{variable_name}} with the value
-        pattern = r'\{\{' + re.escape(var_name) + r'\}\}'
-        result = re.sub(pattern, str(var_value), result)
-    
-    return result
+
+    def _repl(m: re.Match) -> str:
+        inner = _PLACEHOLDER_INNER_NORM.sub("", (m.group(1) or "")).strip()
+        return str(variables.get(inner, ""))
+
+    return re.sub(r"\{\{([^}]+)\}\}", _repl, text)
 
 def identify_variables(text: str) -> list[str]:
     """
@@ -53,7 +75,13 @@ async def get_all_variables(
     longitude: Optional[float] = None,
     date: Optional[datetime] = None,
     pooja_name: Optional[str] = None,
-    template_language: str = "sanskrit"  # Default to sanskrit for backward compatibility
+    template_language: str = "sanskrit",
+    template_language_enum: Optional[Language] = None,
+    override_gotram: Optional[str] = None,
+    override_birth_nakshatra: Optional[str] = None,
+    override_birth_rashi: Optional[str] = None,
+    sankalpa_intent: Optional[str] = None,
+    output_telugu_preference: Optional[bool] = None,
 ) -> Dict[str, str]:
     """
     Gather all variables needed for Sankalpam template replacement.
@@ -72,91 +100,150 @@ async def get_all_variables(
     
     variables: Dict[str, str] = {}
     
-    # User variables
-    template_lang_lower = (template_language or "").strip().lower()
-    is_telugu = template_lang_lower in ("te", "telugu")
+    # User variables — prefer DB Language enum so SQLAlchemy str/enum quirks do not skip Telugu path
+    is_telugu = is_telugu_template_language(template_language, template_language_enum)
+    astro_lang = "telugu" if is_telugu else (template_language or "sanskrit")
     if is_telugu:
-        from app.services.divineapi_service import _latin_name_to_telugu, _english_to_telugu, _TE_RELATION as _TE_REL
-        variables["user_first_name"] = _latin_name_to_telugu(user.first_name)
-        variables["user_last_name"] = _latin_name_to_telugu(user.last_name)
-        variables["user_name"] = f"{variables['user_first_name']} {variables['user_last_name']}"
-        variables["gotram"] = _latin_name_to_telugu(user.gotram or "")
+        from app.services.divineapi_service import (
+            _latin_name_to_telugu,
+            _english_to_telugu,
+            _TE_RELATION as _TE_REL,
+            _TE_POOJA_NAMES,
+            _nakshatra_to_telugu,
+            _TE_RASHI,
+        )
+        from app.services.telugu_sankalpam_output import (
+            format_birth_date_telugu,
+            format_birth_time_telugu,
+            force_telugu_place_segment,
+        )
+
+        variables["user_first_name"] = _latin_name_to_telugu(user.first_name or "")
+        variables["user_last_name"] = _latin_name_to_telugu(user.last_name or "")
+        variables["user_name"] = f"{variables['user_first_name']} {variables['user_last_name']}".strip()
+        gotra_raw = ((override_gotram if override_gotram is not None else user.gotram) or "").strip()
+        variables["gotram"] = _latin_name_to_telugu(gotra_raw) if gotra_raw else ""
+
+        variables["birth_city"] = force_telugu_place_segment(user.birth_city or "")
+        variables["birth_state"] = force_telugu_place_segment(user.birth_state or "")
+        variables["birth_country"] = force_telugu_place_segment(user.birth_country or "")
+        _bp_parts = [variables["birth_city"], variables["birth_state"], variables["birth_country"]]
+        variables["birth_place"] = ", ".join(p for p in _bp_parts if p)
+        variables["birth_time"] = format_birth_time_telugu(user.birth_time or "")
+        variables["birth_date"] = format_birth_date_telugu(user.birth_date)
     else:
         variables["user_first_name"] = user.first_name
         variables["user_last_name"] = user.last_name
         variables["user_name"] = f"{user.first_name} {user.last_name}"
-        variables["gotram"] = user.gotram
-    variables["birth_place"] = f"{user.birth_city}, {user.birth_state}, {user.birth_country}"
-    variables["birth_city"] = user.birth_city
-    variables["birth_state"] = user.birth_state
-    variables["birth_country"] = user.birth_country
-    variables["birth_time"] = user.birth_time
-    variables["birth_date"] = user.birth_date.strftime("%Y-%m-%d")
-    
-    # Translate location names based on user's preferred language
+        variables["gotram"] = ((override_gotram if override_gotram is not None else user.gotram) or "").strip()
+        variables["birth_place"] = f"{user.birth_city}, {user.birth_state}, {user.birth_country}"
+        variables["birth_city"] = user.birth_city
+        variables["birth_state"] = user.birth_state
+        variables["birth_country"] = user.birth_country
+        variables["birth_time"] = user.birth_time
+        variables["birth_date"] = user.birth_date.strftime("%Y-%m-%d") if user.birth_date else ""
+
+    # Translate location names based on template language
     from app.services.translation_service import translate_location
+
+    _tr_lang = "telugu" if is_telugu else ("hindi" if "hindi" in (template_language or "").lower() else "sanskrit")
     translated_location = translate_location(
         city=location_city,
         state=location_state,
         country=location_country,
-        language=template_language if template_language else "sanskrit"
+        language=_tr_lang,
     )
     
-    # Current location variables (without country to avoid duplication, translated)
-    variables["current_location"] = f"{translated_location['city']}, {translated_location['state']}"
-    variables["location_city"] = translated_location["city"]
-    variables["location_state"] = translated_location["state"]
-    variables["location_country"] = translated_location["country"]
+    # Current location variables (translated; Telugu forces no Latin in place names)
+    if is_telugu:
+        _cc = force_telugu_place_segment(translated_location["city"] or location_city or "")
+        _cs = force_telugu_place_segment(translated_location["state"] or location_state or "")
+        _cco = force_telugu_place_segment(translated_location["country"] or location_country or "")
+        variables["current_location"] = ", ".join(x for x in (_cc, _cs) if x)
+        variables["location_city"] = _cc
+        variables["location_state"] = _cs
+        variables["location_country"] = _cco
+    else:
+        variables["current_location"] = f"{translated_location['city']}, {translated_location['state']}"
+        variables["location_city"] = translated_location["city"]
+        variables["location_state"] = translated_location["state"]
+        variables["location_country"] = translated_location["country"]
     
     # Keep original English names for internal use (if needed)
     variables["location_city_en"] = location_city
     variables["location_state_en"] = location_state
     variables["location_country_en"] = location_country
     
-    # Astronomical data for current date (when Sankalpam is performed)
-    astronomical_data = await get_astronomical_data(date, latitude, longitude)
+    # Astronomical data for current date at selected location (Divine API when configured)
+    astronomical_data = await get_astronomical_data(
+        date,
+        latitude,
+        longitude,
+        location_city=location_city,
+        location_state=location_state,
+        location_country=location_country,
+        template_language=astro_lang,
+    )
     variables.update(astronomical_data)
     
-    # User's birth astronomical data (nakshatra, rashi, etc.)
-    # Parse birth date and time to calculate birth nakshatra
-    try:
-        # Combine birth_date and birth_time
-        birth_time_parts = user.birth_time.split(':')
-        birth_hour = int(birth_time_parts[0])
-        birth_minute = int(birth_time_parts[1]) if len(birth_time_parts) > 1 else 0
-        
-        # Create birth datetime - user.birth_date is already a datetime, so get date part and combine with time
-        if isinstance(user.birth_date, datetime):
-            birth_datetime = datetime.combine(user.birth_date.date(), time(hour=birth_hour, minute=birth_minute))
-        else:
-            # If it's already a date object, combine directly
-            from datetime import date as date_type
-            if isinstance(user.birth_date, date_type):
-                birth_datetime = datetime.combine(user.birth_date, time(hour=birth_hour, minute=birth_minute))
+    # Birth nakshatra / rashi: profile + ritual overrides first (same as pooja flow); else compute from birth time
+    bn_profile = ((override_birth_nakshatra if override_birth_nakshatra is not None else user.birth_nakshatra) or "").strip()
+    br_profile = ((override_birth_rashi if override_birth_rashi is not None else user.birth_rashi) or "").strip()
+    variables["birth_nakshatra"] = ""
+    variables["birth_rashi"] = ""
+    if bn_profile:
+        if is_telugu:
+            bn_clean = re.sub(r"\s*nakshatra\s*$", "", bn_profile, flags=re.I).strip()
+            variables["birth_nakshatra"] = _nakshatra_to_telugu(bn_clean) or _latin_name_to_telugu(bn_clean)
+            if br_profile:
+                br_clean = re.sub(r"\s*(rAshi|rashi|raśi)\s*$", "", br_profile, flags=re.I).strip()
+                _br = _english_to_telugu(br_clean, _TE_RASHI)
+                if not _br or _br.strip().lower() == br_clean.lower():
+                    variables["birth_rashi"] = _latin_name_to_telugu(br_clean)
+                else:
+                    variables["birth_rashi"] = _br
             else:
-                # Fallback: use current date
-                birth_datetime = datetime.now()
-        
-        # Get user's birth location coordinates if available (for now, use None or default)
-        # In production, you might want to store lat/long for birth location
-        birth_latitude = None
-        birth_longitude = None
-        
-        # Calculate birth astronomical data
-        birth_astronomical_data = await get_astronomical_data(
-            birth_datetime, 
-            birth_latitude, 
-            birth_longitude
-        )
-        
-        # Add birth-specific variables
-        variables["birth_nakshatra"] = birth_astronomical_data.get("nakshatra", "")
-        variables["birth_rashi"] = birth_astronomical_data.get("rashi", "")  # Zodiac sign
-    except Exception as e:
-        # If there's an error calculating birth data, set empty strings
-        print(f"Error calculating birth astronomical data: {e}")
-        variables["birth_nakshatra"] = ""
-        variables["birth_rashi"] = ""
+                variables["birth_rashi"] = ""
+        else:
+            variables["birth_nakshatra"] = bn_profile
+            variables["birth_rashi"] = br_profile
+    else:
+        try:
+            birth_time_parts = (user.birth_time or "0:0").split(":")
+            birth_hour = int(birth_time_parts[0])
+            birth_minute = int(birth_time_parts[1]) if len(birth_time_parts) > 1 else 0
+            if isinstance(user.birth_date, datetime):
+                birth_datetime = datetime.combine(user.birth_date.date(), time(hour=birth_hour, minute=birth_minute))
+            else:
+                from datetime import date as date_type
+                if isinstance(user.birth_date, date_type):
+                    birth_datetime = datetime.combine(user.birth_date, time(hour=birth_hour, minute=birth_minute))
+                else:
+                    birth_datetime = datetime.now()
+            birth_astronomical_data = await get_astronomical_data(
+                birth_datetime,
+                None,
+                None,
+                template_language=astro_lang,
+            )
+            nak = birth_astronomical_data.get("nakshatra", "") or ""
+            rash = birth_astronomical_data.get("rashi", "") or ""
+            if is_telugu:
+                nak2 = re.sub(r"\s*nakshatra\s*$", "", nak, flags=re.I).strip()
+                variables["birth_nakshatra"] = (
+                    _nakshatra_to_telugu(nak2) or _latin_name_to_telugu(nak2) if nak2 else ""
+                )
+                if rash:
+                    r2 = re.sub(r"\s*(rAshi|rashi|raśi)\s*$", "", rash, flags=re.I).strip()
+                    _rz = _english_to_telugu(r2, _TE_RASHI)
+                    variables["birth_rashi"] = _rz if _rz.lower() != r2.lower() else _latin_name_to_telugu(r2)
+                else:
+                    variables["birth_rashi"] = ""
+            else:
+                variables["birth_nakshatra"] = nak
+                variables["birth_rashi"] = rash
+        except Exception as e:
+            print(f"Error calculating birth astronomical data: {e}")
     
     # Geographical features
     geo_features = await get_nearby_geographical_features(
@@ -176,58 +263,92 @@ async def get_all_variables(
     # Translate geographical feature names based on language
     from app.services.translation_service import translate_geographical_feature
     
-    # Set geographical_feature with priority: river > sea > ocean > mountain
-    # This ensures we use river first, then sea, then ocean, then mountain
-    # All names are translated to user's preferred language
-    if geo_features.get("river"):
+    # Geographical feature line: full Telugu script when template is Telugu
+    if is_telugu:
+        if geo_features.get("river"):
+            tr = translate_geographical_feature(geo_features["river"], "river", "telugu")
+            tr = force_telugu_place_segment(tr)
+            variables["geographical_feature"] = f"{tr} నదీ తీరం"
+        elif geo_features.get("sea"):
+            tr = translate_geographical_feature(geo_features["sea"], "sea", "telugu")
+            tr = force_telugu_place_segment(tr)
+            variables["geographical_feature"] = f"{tr} సముద్ర తీరం"
+        elif geo_features.get("ocean"):
+            tr = translate_geographical_feature(geo_features["ocean"], "ocean", "telugu")
+            tr = force_telugu_place_segment(tr)
+            variables["geographical_feature"] = f"{tr} సముద్ర తీరం"
+        elif geo_features.get("mountain"):
+            tr = translate_geographical_feature(geo_features["mountain"], "mountain", "telugu")
+            tr = force_telugu_place_segment(tr)
+            variables["geographical_feature"] = f"{tr} పర్వత సమీపం"
+        elif geo_features.get("primary_feature"):
+            variables["geographical_feature"] = force_telugu_place_segment(geo_features.get("primary_feature") or "")
+        else:
+            variables["geographical_feature"] = ""
+    elif geo_features.get("river"):
         translated_river = translate_geographical_feature(geo_features["river"], "river", template_language)
-        variables["geographical_feature"] = f"{translated_river} nadi tere"  # "river shore"
+        variables["geographical_feature"] = f"{translated_river} nadi tere"
     elif geo_features.get("sea"):
         translated_sea = translate_geographical_feature(geo_features["sea"], "sea", template_language)
-        variables["geographical_feature"] = f"{translated_sea} samudra tere"  # "sea shore"
+        variables["geographical_feature"] = f"{translated_sea} samudra tere"
     elif geo_features.get("ocean"):
         translated_ocean = translate_geographical_feature(geo_features["ocean"], "ocean", template_language)
-        variables["geographical_feature"] = f"{translated_ocean} samudra tere"  # "ocean shore"
+        variables["geographical_feature"] = f"{translated_ocean} samudra tere"
     elif geo_features.get("mountain"):
         translated_mountain = translate_geographical_feature(geo_features["mountain"], "mountain", template_language)
-        variables["geographical_feature"] = f"{translated_mountain} parvata pArshvE"  # "near mountain"
+        variables["geographical_feature"] = f"{translated_mountain} parvata pArshvE"
     elif geo_features.get("primary_feature"):
-        # primary_feature already contains translated text, so use as is
         variables["geographical_feature"] = geo_features.get("primary_feature")
     else:
-        # Final fallback
         variables["geographical_feature"] = ""
     
     # Family members (names and relations in selected language when Telugu)
     family_list = []
     for member in family_members:
         if is_telugu:
-            name_te = _latin_name_to_telugu(member.name)
-            rel_te = _english_to_telugu((member.relation or "").strip(), _TE_REL) or (member.relation or "")
-            family_list.append(f"{name_te} ({rel_te})")
+            # Keep names exactly as stored; per-letter Latin→Telugu mangles many personal names.
+            name_disp = (member.name or "").strip()
+            rel_raw = (member.relation or "").strip()
+            rel_te = _english_to_telugu(rel_raw, _TE_REL)
+            if not rel_te or rel_te.strip().lower() == rel_raw.lower():
+                rel_te = rel_raw
+            if rel_te:
+                family_list.append(f"{name_disp} ({rel_te})")
+            else:
+                family_list.append(name_disp)
         else:
             family_list.append(f"{member.name} ({member.relation})")
-    variables["family_members"] = ", ".join(family_list) if family_list else "None"
+    variables["family_members"] = ", ".join(family_list) if family_list else ("" if is_telugu else "None")
     variables["family_members_count"] = str(len(family_members))
     
-    # Pooja name
+    # Pooja / generic sankalpam title
     if pooja_name:
-        variables["pooja_name"] = pooja_name
+        if is_telugu:
+            _pn = pooja_name.strip()
+            _mapped = _english_to_telugu(_pn, _TE_POOJA_NAMES)
+            if _mapped.strip().lower() == _pn.lower():
+                variables["pooja_name"] = _latin_name_to_telugu(_pn)
+            else:
+                variables["pooja_name"] = _mapped
+        else:
+            variables["pooja_name"] = pooja_name
     else:
-        variables["pooja_name"] = "Pooja"
-    
-    # Date and time variables
-    variables["date"] = date.strftime("%Y-%m-%d")
-    variables["time"] = date.strftime("%H:%M")
-    variables["date_formatted"] = date.strftime("%B %d, %Y")
-    
+        variables["pooja_name"] = "సాధారణ సంకల్పం" if is_telugu else "Pooja"
+
+    # Date and time variables (Telugu month names; digits stay 0–9 when template is Telugu)
+    if is_telugu:
+        variables["date"] = format_birth_date_telugu(date)
+        variables["time"] = format_birth_time_telugu(date.strftime("%H:%M"))
+        variables["date_formatted"] = format_birth_date_telugu(date)
+    else:
+        variables["date"] = date.strftime("%Y-%m-%d")
+        variables["time"] = date.strftime("%H:%M")
+        variables["date_formatted"] = date.strftime("%B %d, %Y")
+
     # Location-based geographical references (language-aware)
-    # Generate in appropriate script based on template language
-    country_lower = location_country.lower().strip()
-    template_lang_lower = template_language.lower() if template_language else "sanskrit"
-    
-    if "telugu" in template_lang_lower:
-        # Telugu script
+    country_lower = (location_country or "").lower().strip()
+
+    if is_telugu:
         if "india" in country_lower or "bharat" in country_lower:
             variables["geographical_reference"] = "జంబూద్వీపే భారతవర్షే భారతఖండే"
         elif "nepal" in country_lower:
@@ -237,7 +358,8 @@ async def get_all_variables(
         elif "united states" in country_lower or "usa" in country_lower:
             variables["geographical_reference"] = "అమెరికా దేశే"
         else:
-            variables["geographical_reference"] = f"{location_country} దేశే"
+            _cde = force_telugu_place_segment(location_country or "")
+            variables["geographical_reference"] = f"{_cde} దేశే" if _cde else "దేశే"
     else:
         # Sanskrit/Devanagari script (default)
         if "india" in country_lower or "bharat" in country_lower:
@@ -250,7 +372,14 @@ async def get_all_variables(
             variables["geographical_reference"] = "अमेरिका देशे"
         else:
             variables["geographical_reference"] = f"{location_country} देशे"
-    
+
+    # Telugu sankalpa purpose phrase (matches /api/sankalpam/generate intent options)
+    if is_telugu:
+        from app.services.sankalpa_family_builder import sankalpa_intent_phrase_te
+        variables["sankalpa_intent"] = sankalpa_intent_phrase_te(sankalpa_intent or "general")
+    else:
+        variables["sankalpa_intent"] = ""
+
     return variables
 
 async def replace_template_variables(

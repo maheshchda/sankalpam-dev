@@ -282,6 +282,14 @@ class TemplateGenerateRequest(BaseModel):
     longitude: Optional[str] = None
     date: Optional[datetime] = None
     pooja_name: Optional[str] = None
+    # Same semantics as /api/sankalpam/generate: omit = all non-deceased; list = only those ids
+    participant_member_ids: Optional[List[int]] = None
+    sankalpa_intent: Optional[str] = None
+    # ISO/UI language (e.g. te): when "te", force Telugu variable filling even if template row enum is wrong
+    sankalpam_language_code: Optional[str] = None
+    override_gotram: Optional[str] = None
+    override_birth_nakshatra: Optional[str] = None
+    override_birth_rashi: Optional[str] = None
 
 class TemplateGenerateResponse(BaseModel):
     text: str

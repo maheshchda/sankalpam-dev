@@ -1,0 +1,2 @@
+CNAME = 5kble01d.up.railway.app
+TXT = railway-verify=c41ca30a9122dfd12ba0f0d6f24f773c2440f20470b1d0a4c9986f006a0ba8d4

@@ -9,12 +9,24 @@ from pathlib import Path
 import json
 
 from app.database import get_db
-from app.models import User, SankalpamTemplate, PoojaSession, FamilyMember
+from app.models import User, SankalpamTemplate, PoojaSession, FamilyMember, Language
 from app.schemas import TemplateGenerateRequest, TemplateGenerateResponse
 from app.dependencies import get_current_active_user, get_current_user
-from app.services.template_service import get_all_variables, replace_template_variables
+from app.services.template_service import (
+    get_all_variables,
+    replace_template_variables,
+    is_telugu_template_language,
+)
+from app.services.sankalpa_family_builder import filter_family_participants
 from app.services.tts_service import text_to_speech
 from app.services.location_service import get_location_from_coordinates, get_coordinates_from_place
+from app.services.divineapi_service import _resolve_coords_for_panchang
+from app.services.geonames_service import (
+    GeoNamesError,
+    find_nearby_features,
+    find_nearby_place_name,
+    ocean,
+)
 from app.config import settings
 router = APIRouter()
 
@@ -52,6 +64,39 @@ async def forward_geocode_location(
     """
     result = await get_coordinates_from_place(city=city, state=state, country=country)
     return result
+
+
+@router.get("/geonames-test")
+async def geonames_test(
+    latitude: str,
+    longitude: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Test endpoint to verify GeoNames is reachable and your GEONAMES_USERNAME works.
+    Returns:
+      - nearest place (findNearbyPlaceName)
+      - ocean (oceanJSON) when applicable
+      - nearby raw features (findNearbyJSON)
+    """
+    try:
+        lat = float(latitude)
+        lon = float(longitude)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid latitude/longitude.")
+
+    try:
+        place = await find_nearby_place_name(lat, lon)
+        oc = await ocean(lat, lon)
+        features = await find_nearby_features(lat, lon, radius_km=30.0, max_rows=20)
+        return {
+            "username_configured": bool((settings.geonames_username or "").strip()),
+            "place": place,
+            "ocean": oc,
+            "features": features,
+        }
+    except GeoNamesError as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
 
 @router.post("/generate", response_model=TemplateGenerateResponse)
@@ -105,10 +150,13 @@ async def generate_audio_from_template(
         # Get template text directly (stored in database)
         template_text = template.template_text
         
-        # Get user's family members
-        family_members = db.query(FamilyMember).filter(
+        # Family members: optional participant list (omit = all); never include deceased
+        _all_family = db.query(FamilyMember).filter(
             FamilyMember.user_id == current_user.id
         ).all()
+        family_members = filter_family_participants(
+            _all_family, request.participant_member_ids
+        )
         
         # Get pooja name if session exists
         pooja_name = None
@@ -139,7 +187,21 @@ async def generate_audio_from_template(
             except Exception as e:
                 print(f"Error getting location from coordinates: {e}")
                 # Fall back to provided location if geocoding fails
-        
+
+        # Panchang (Divine API) needs coordinates: geocode from city when browser did not send GPS
+        if (latitude is None or longitude is None) and (location_city or "").strip() and (location_country or "").strip():
+            try:
+                rl, rr = await _resolve_coords_for_panchang(
+                    (location_city or "").strip(),
+                    (location_state or "").strip(),
+                    (location_country or "").strip(),
+                )
+                if rl and rr:
+                    latitude = float(rl)
+                    longitude = float(rr)
+            except (ValueError, TypeError) as e:
+                print(f"Could not resolve coordinates for panchang: {e}")
+
         # Use provided date or current date
         # For Sankalpam, we want the local date at the location, not UTC
         # So we use naive datetime which represents local time
@@ -154,7 +216,12 @@ async def generate_audio_from_template(
         try:
             template_lang = template.language.value if hasattr(template.language, 'value') else str(template.language)
             print(f"Gathering variables for template language: {template_lang}")
-            
+
+            _slc = (request.sankalpam_language_code or "").strip().lower()
+            output_telugu_preference: Optional[bool] = None
+            if _slc in ("te", "telugu") or "telugu" in _slc:
+                output_telugu_preference = True
+
             variables = await get_all_variables(
                 user=current_user,
                 family_members=family_members,
@@ -164,8 +231,14 @@ async def generate_audio_from_template(
                 latitude=latitude,
                 longitude=longitude,
                 date=date,
-                pooja_name=pooja_name or "Ganesha Pooja",
-                template_language=template_lang
+                pooja_name=pooja_name,
+                template_language=template_lang,
+                template_language_enum=template.language,
+                override_gotram=request.override_gotram,
+                override_birth_nakshatra=request.override_birth_nakshatra,
+                override_birth_rashi=request.override_birth_rashi,
+                sankalpa_intent=request.sankalpa_intent,
+                output_telugu_preference=output_telugu_preference,
             )
             print(f"Variables gathered successfully. Count: {len(variables)}")
         except Exception as e:
@@ -193,9 +266,14 @@ async def generate_audio_from_template(
         
         # Generate audio file
         try:
+            _tl = template.language.value if isinstance(template.language, Language) else str(template.language)
+            _effective_te = output_telugu_preference is True or is_telugu_template_language(
+                template_lang, template.language
+            )
+            tts_language = Language.TELUGU.value if _effective_te else _tl
             audio_path = await text_to_speech(
                 text=final_text,
-                language=template.language.value,
+                language=tts_language,
                 slow=False  # Set to True for slower speech if needed
             )
             
@@ -250,12 +328,16 @@ async def get_active_templates(
     # Return simplified template info (without file paths)
     result = []
     for t in templates:
-        # Handle language - it might be an enum or string
+        # Always expose enum .value (e.g. telugu), never str(Language.TELUGU) repr
         language_value = t.language
-        if hasattr(language_value, 'value'):
+        if isinstance(language_value, Language):
             language_value = language_value.value
-        elif hasattr(language_value, '__str__'):
-            language_value = str(language_value)
+        elif isinstance(language_value, str):
+            language_value = language_value.strip().lower()
+        elif hasattr(language_value, 'value'):
+            language_value = language_value.value
+        else:
+            language_value = str(language_value).lower()
         
         result.append({
             "id": t.id,
