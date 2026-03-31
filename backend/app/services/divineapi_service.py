@@ -265,6 +265,7 @@ def _nakshatra_to_telugu(nak: str) -> str:
 # ISO 639-1 codes for language selection (e.g. Telugu/telugu -> 'te')
 _LANG_NAME_OR_CODE_TO_ISO = {
     "hindi": "hi", "hi": "hi",
+    "english": "en",
     "telugu": "te", "te": "te",
     "tamil": "ta", "ta": "ta",
     "kannada": "kn", "kn": "kn",
@@ -447,7 +448,23 @@ async def _fetch_panchang_for_today(
         lon_num = 0.0
 
     tzone = timezone_offset_hours
-    api_language = _language_to_iso(language) if language else "en"
+    _iso = _language_to_iso(language) if language else "en"
+    # Divine find-panchang expects lan codes like tl (Telugu), tm (Tamil), en, hi — not ISO 639-1 alone.
+    _FIND_PANCHANG_LAN = {
+        "te": "tl",
+        "ta": "tm",
+        "hi": "hi",
+        "kn": "kn",
+        "ml": "ml",
+        "sa": "sa",
+        "en": "en",
+        "mr": "ma",
+        "bn": "bn",
+        "gu": "gu",
+        "or": "or",
+        "pa": "pa",
+    }
+    api_language = _FIND_PANCHANG_LAN.get(_iso, "en")
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -566,7 +583,7 @@ async def _fetch_panchang_for_today(
                 "yoga":              yoga_name or "",
                 "karana":            karana_name or "",
             }
-            print("[Panchang] Fetched from Divine API:", result.get("nakshatra"), result.get("tithi_end_time"), result.get("nakshatra_end_time"))
+            print("[Panchang] Fetched from Divine API (ok)")
             return result
     except Exception as e:
         print(f"[Panchang] Error calling DivineAPI find-panchang: {e}")

@@ -7,6 +7,8 @@ Templates are organized by **Indian language** in subfolders. Each language fold
 - **Generic fallback:** `sankalpam_template_{language}.txt`  
   Example: `sankalpam_template_telugu.txt` used when no pooja-specific file exists.
 
+The **Telugu** generic file (`telugu/sankalpam_template_telugu.txt`) is a copy of the **Sanskrit** generic (`sanskrit/sankalpam_template_sanskrit.txt`): the same Devanagari sankalpam text and `{{variables}}` so one template can serve Telugu language selection (e.g. TTS language) while keeping identical wording. The canonical source also lives at `backend/sample_sankalpam_template.txt`.
+
 ## Folder names (match language codes)
 
 | Code | Folder   |
