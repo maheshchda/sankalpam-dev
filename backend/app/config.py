@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     
     # Google Maps
     google_maps_api_key: str = ""
+
+    # GeoNames (optional) — for nearby geographic feature names (river/sea/mountain)
+    geonames_username: str = ""
     
     # Google Cloud TTS (optional, for professional priest-like voice)
     google_cloud_tts_credentials_path: str = ""
