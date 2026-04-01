@@ -1,5 +1,5 @@
 """
-Router for generating Sankalpam audio from templates
+Router for generating Sankalpam audio from templates.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -26,6 +26,7 @@ from app.services.geonames_service import (
     find_nearby_features,
     find_nearby_place_name,
     ocean,
+    search_natural_features,
 )
 from app.config import settings
 router = APIRouter()
@@ -87,13 +88,24 @@ async def geonames_test(
 
     try:
         place = await find_nearby_place_name(lat, lon)
-        oc = await ocean(lat, lon)
-        features = await find_nearby_features(lat, lon, radius_km=30.0, max_rows=20)
+        try:
+            oc = await ocean(lat, lon)
+        except GeoNamesError:
+            # Inland coords often have no ocean; keep response usable.
+            oc = None
+
+        # Raw nearby (often buildings/hotels). Kept for debugging.
+        features_raw = await find_nearby_features(lat, lon, radius_km=30.0, max_rows=20)
+
+        # Natural-only nearby results suitable for Sankalpam geography lines.
+        natural = await search_natural_features(lat, lon, radius_km=60.0, max_rows=20)
+
         return {
             "username_configured": bool((settings.geonames_username or "").strip()),
             "place": place,
             "ocean": oc,
-            "features": features,
+            "features_raw": features_raw,
+            "natural_features": natural,
         }
     except GeoNamesError as e:
         raise HTTPException(status_code=502, detail=str(e))
