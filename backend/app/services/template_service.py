@@ -5,6 +5,11 @@ from typing import Dict, Optional
 from datetime import datetime, time
 from app.models import User, FamilyMember, Language
 from app.services.astronomical_service import get_astronomical_data
+from app.services.continent_dweepa_varsha import (
+    parse_coords,
+    resolve_geographical_reference,
+    template_language_to_iso,
+)
 from app.services.location_service import get_nearby_geographical_features
 import re
 
@@ -345,33 +350,12 @@ async def get_all_variables(
         variables["time"] = date.strftime("%H:%M")
         variables["date_formatted"] = date.strftime("%B %d, %Y")
 
-    # Location-based geographical references (language-aware)
-    country_lower = (location_country or "").lower().strip()
-
-    if is_telugu:
-        if "india" in country_lower or "bharat" in country_lower:
-            variables["geographical_reference"] = "జంబూద్వీపే భారతవర్షే భారతఖండే"
-        elif "nepal" in country_lower:
-            variables["geographical_reference"] = "జంబూద్వీపే నేపాలవర్షే"
-        elif "sri lanka" in country_lower or "ceylon" in country_lower:
-            variables["geographical_reference"] = "లంకాద్వీపే"
-        elif "united states" in country_lower or "usa" in country_lower:
-            variables["geographical_reference"] = "అమెరికా దేశే"
-        else:
-            _cde = force_telugu_place_segment(location_country or "")
-            variables["geographical_reference"] = f"{_cde} దేశే" if _cde else "దేశే"
-    else:
-        # Sanskrit/Devanagari script (default)
-        if "india" in country_lower or "bharat" in country_lower:
-            variables["geographical_reference"] = "भारतवर्षे भरतखण्डे जम्बूद्वीपे"
-        elif "nepal" in country_lower:
-            variables["geographical_reference"] = "नेपालवर्षे जम्बूद्वीपे"
-        elif "sri lanka" in country_lower or "ceylon" in country_lower:
-            variables["geographical_reference"] = "लङ्काद्वीपे"
-        elif "united states" in country_lower or "usa" in country_lower:
-            variables["geographical_reference"] = "अमेरिका देशे"
-        else:
-            variables["geographical_reference"] = f"{location_country} देशे"
+    # Location-based geographical references: Puranic dvīpa / varṣa by continent (all Indic scripts)
+    geo_iso = template_language_to_iso(template_language, template_language_enum)
+    lat_p, lon_p = parse_coords(latitude, longitude)
+    variables["geographical_reference"] = resolve_geographical_reference(
+        geo_iso, location_country, lat_p, lon_p
+    )
 
     # Telugu sankalpa purpose phrase (matches /api/sankalpam/generate intent options)
     if is_telugu:
