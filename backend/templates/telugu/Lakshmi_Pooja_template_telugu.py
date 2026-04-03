@@ -348,7 +348,11 @@ def _get_fallback_panchang(data: Dict) -> Dict[str, str]:
 async def _get_geographical_reference(data: Dict) -> str:
     try:
         from app.services.divineapi_service import _telugu_geographical_reference_from_country
-        return _telugu_geographical_reference_from_country(data.get("location_country", ""))
+        return _telugu_geographical_reference_from_country(
+            data.get("location_country", ""),
+            data.get("latitude"),
+            data.get("longitude"),
+        )
     except ImportError:
         if not data.get("location_country") or "india" in (data.get("location_country") or "").lower():
             return "జంబూద్వీపే భారతవర్షే భారతఖండే"

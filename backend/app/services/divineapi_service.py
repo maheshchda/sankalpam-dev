@@ -3,7 +3,7 @@ import unicodedata
 import httpx
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 from app.models import User, FamilyMember, Language
 from app.config import settings
 
@@ -830,20 +830,16 @@ async def _ensure_telugu_for_user(
     return text
 
 
-def _telugu_geographical_reference_from_country(location_country: Optional[str]) -> str:
-    """Return Telugu geographical reference phrase based on current location country (for {{geographical_reference}})."""
-    if not location_country or not location_country.strip():
-        return "భారతవర్షే భరతఖండే జంబూద్వీపే"
-    country_lower = location_country.strip().lower()
-    if "india" in country_lower or "bharat" in country_lower:
-        return "జంబూద్వీపే భారతవర్షే భారతఖండే"
-    if "nepal" in country_lower:
-        return "జంబూద్వీపే నేపాలవర్షే"
-    if "sri lanka" in country_lower or "ceylon" in country_lower:
-        return "లంకాద్వీపే"
-    if "united states" in country_lower or "usa" in country_lower or "america" in country_lower:
-        return "అమెరికా దేశే"
-    return f"{location_country.strip()} దేశే"
+def _telugu_geographical_reference_from_country(
+    location_country: Optional[str],
+    latitude: Optional[Any] = None,
+    longitude: Optional[Any] = None,
+) -> str:
+    """Telugu {{geographical_reference}}: continent-wise dvīpa / varṣa (Puranic), same as template_service."""
+    from app.services.continent_dweepa_varsha import parse_coords, resolve_geographical_reference
+
+    lat_p, lon_p = parse_coords(latitude, longitude)
+    return resolve_geographical_reference("te", location_country, lat_p, lon_p)
 
 
 # English geographical fallbacks -> Telugu (so Telugu template never shows "sacred tIrtha" etc.)
@@ -991,7 +987,11 @@ async def _generate_telugu_sankalpam(data: dict, pooja_name: Optional[str] = Non
         template = _TELUGU_TEMPLATE_INLINE
 
     # Map data to template variables; convert all English calendar/panchang terms to Telugu
-    geographical_reference = _telugu_geographical_reference_from_country(data.get("location_country"))
+    geographical_reference = _telugu_geographical_reference_from_country(
+        data.get("location_country"),
+        data.get("latitude"),
+        data.get("longitude"),
+    )
     current_location = data.get("current_location") or ""
     primary_geo = _telugu_geographical_feature_from_data(data)
     now = datetime.now()
@@ -1586,6 +1586,11 @@ async def generate_standard_sankalpam(data: dict) -> str:
     karana = data.get("karana")
     weekday = data.get("weekday_name")
 
+    from app.services.continent_dweepa_varsha import parse_coords, resolve_geographical_reference
+
+    _lat, _lon = parse_coords(data.get("latitude"), data.get("longitude"))
+    geo_line = resolve_geographical_reference("hi", data.get("location_country"), _lat, _lon)
+
     sankalpam = f"""
 श्री गणेशाय नमः
 
@@ -1596,7 +1601,7 @@ async def generate_standard_sankalpam(data: dict) -> str:
 वैवस्वतमन्वन्तरे अष्टाविंशतितमे कलियुगे
 प्रथमचरणे
 
-भारतवर्षे भरतखण्डे जम्बूद्वीपे
+{geo_line}
 {data['current_location']} नगरे
 {primary_geo}
 

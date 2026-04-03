@@ -419,8 +419,11 @@ async def _get_geographical_reference(data: Dict) -> str:
     """Get geographical reference phrase based on country."""
     try:
         from app.services.divineapi_service import _telugu_geographical_reference_from_country
-        location_country = data.get("location_country", "")
-        return _telugu_geographical_reference_from_country(location_country)
+        return _telugu_geographical_reference_from_country(
+            data.get("location_country", ""),
+            data.get("latitude"),
+            data.get("longitude"),
+        )
     except ImportError:
         # Fallback
         location_country = data.get("location_country", "")
