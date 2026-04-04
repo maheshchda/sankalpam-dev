@@ -501,3 +501,34 @@ async def get_today_panchang(
         "today_rasi":         today_rasi or "",
         "chandra_balam":      chandra_result,
     }
+
+
+@router.get("/kp-chart")
+async def get_kp_cuspal_chart(
+    lat: float = Query(..., description="Latitude (required for Placidus cusps)"),
+    lon: float = Query(..., description="Longitude (required for Placidus cusps)"),
+    timezone_offset: float = Query(0.0, description="Browser TZ offset hours from UTC"),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Krishnamurti-style snapshot: sidereal Sun/Moon, Moon sub-lord, 12 Placidus cusp longitudes
+    with cuspal sub-lords (Swiss Ephemeris + Krishnamurti ayanamsa on the server).
+    """
+    try:
+        from app.services.swiss_ephemeris_engine import (
+            compute_kp_chart,
+            julian_day_ut_from_local,
+            kp_chart_to_dict,
+        )
+    except ImportError:
+        raise HTTPException(status_code=503, detail="Swiss Ephemeris module not available")
+
+    utc_now = datetime.now(timezone.utc)
+    now = utc_now + timedelta(hours=timezone_offset)
+    try:
+        jd = julian_day_ut_from_local(now.replace(tzinfo=None), timezone_offset)
+        chart = compute_kp_chart(jd, float(lat), float(lon))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"KP chart failed: {e}") from e
+
+    return kp_chart_to_dict(chart)

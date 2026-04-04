@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     divine_access_token: str = ""  # .env: Divine_Access_Token or DIVINE_ACCESS_TOKEN (Bearer token)
     divineapi_key: str = ""  # Legacy - will be set to divine_api_key if empty
     divineapi_base_url: str = "https://api.divineapi.com"
+
+    # Panchang: swiss = Swiss Ephemeris + KP (Krishnamurti ayanamsa) only;
+    # divine = DivineAPI only; auto = Swiss first, then Divine if Swiss fails / unavailable.
+    panchang_source: str = "auto"
     
     # Google Maps
     google_maps_api_key: str = ""

@@ -422,13 +422,9 @@ async def _fetch_panchang_for_today(
     language: str,
 ) -> Optional[dict]:
     """
-    Call Divine API Daily Panchang endpoint to get tithi, nakshatra, yoga, karana, etc.
+    Panchang: Swiss Ephemeris (Krishnamurti / KP) when panchang_source allows, else Divine API.
     Returns a small dict with the key fields we need, or None on failure.
     """
-    if not settings.divine_api_key or not settings.divine_access_token:
-        print("[Panchang] Divine API key or token not set. Set Divine_API_Key and Divine_Access_Token in .env")
-        return None
-
     day = now.day
     month = now.month
     year = now.year
@@ -449,6 +445,27 @@ async def _fetch_panchang_for_today(
 
     tzone = timezone_offset_hours
     _iso = _language_to_iso(language) if language else "en"
+
+    # In-house Swiss Ephemeris + KP (Krishnamurti ayanamsa) — preferred when panchang_source allows it
+    _src = (getattr(settings, "panchang_source", "auto") or "auto").strip().lower()
+    if _src != "divine" and _src in ("auto", "swiss", "inhouse", "local"):
+        from app.services.inhouse_panchang import compute_panchang_dict
+
+        swiss = compute_panchang_dict(now, tzone, lat_num, lon_num)
+        if swiss:
+            print("[Panchang] Using Swiss Ephemeris (Krishnamurti ayanamsa / KP)")
+            return {k: v for k, v in swiss.items() if not str(k).startswith("_")}
+    if _src == "swiss":
+        print("[Panchang] panchang_source=swiss but Swiss compute failed; no Divine fallback")
+        return None
+
+    if not settings.divine_api_key or not settings.divine_access_token:
+        print(
+            "[Panchang] Divine API key or token not set (needed for panchang_source=divine "
+            "or auto fallback). Set Divine_API_Key and Divine_Access_Token in .env"
+        )
+        return None
+
     # Divine find-panchang expects lan codes like tl (Telugu), tm (Tamil), en, hi — not ISO 639-1 alone.
     _FIND_PANCHANG_LAN = {
         "te": "tl",
@@ -611,6 +628,21 @@ async def _fetch_chandramasa_for_today(
     Call Divine API Find Chandramasa to get the current Indian lunar month name in the requested language.
     Returns e.g. Telugu month name when lan='tl', Hindi when lan='hi'. Used for {{mAsE}} in templates.
     """
+    _src = (getattr(settings, "panchang_source", "auto") or "auto").strip().lower()
+    if _src != "divine" and _src in ("auto", "swiss", "inhouse", "local"):
+        try:
+            lat_f = float(latitude) if latitude not in (None, "") else 0.0
+            lon_f = float(longitude) if longitude not in (None, "") else 0.0
+        except (TypeError, ValueError):
+            lat_f, lon_f = 0.0, 0.0
+        from app.services.inhouse_panchang import compute_chandramasa_english
+
+        cm = compute_chandramasa_english(now, timezone_offset_hours, lat_f, lon_f)
+        if cm:
+            return cm
+    if _src == "swiss":
+        return None
+
     if not settings.divine_api_key or not settings.divine_access_token:
         return None
     # Default to English if lan not supported by Chandramasa
