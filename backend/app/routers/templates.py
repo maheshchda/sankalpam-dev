@@ -88,11 +88,8 @@ async def geonames_test(
 
     try:
         place = await find_nearby_place_name(lat, lon)
-        try:
-            oc = await ocean(lat, lon)
-        except GeoNamesError:
-            # Inland coords often have no ocean; keep response usable.
-            oc = None
+        # ocean() maps "no ocean" to None and re-raises other GeoNamesError (same as other calls below).
+        oc = await ocean(lat, lon)
 
         # Raw nearby (often buildings/hotels). Kept for debugging.
         features_raw = await find_nearby_features(lat, lon, radius_km=30.0, max_rows=20)
