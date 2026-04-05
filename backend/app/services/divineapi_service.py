@@ -3,7 +3,7 @@ import unicodedata
 import httpx
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 from app.models import User, FamilyMember, Language
 from app.config import settings
 
@@ -422,13 +422,9 @@ async def _fetch_panchang_for_today(
     language: str,
 ) -> Optional[dict]:
     """
-    Call Divine API Daily Panchang endpoint to get tithi, nakshatra, yoga, karana, etc.
+    Panchang: Swiss Ephemeris (Krishnamurti / KP) when panchang_source allows, else Divine API.
     Returns a small dict with the key fields we need, or None on failure.
     """
-    if not settings.divine_api_key or not settings.divine_access_token:
-        print("[Panchang] Divine API key or token not set. Set Divine_API_Key and Divine_Access_Token in .env")
-        return None
-
     day = now.day
     month = now.month
     year = now.year
@@ -449,6 +445,27 @@ async def _fetch_panchang_for_today(
 
     tzone = timezone_offset_hours
     _iso = _language_to_iso(language) if language else "en"
+
+    # In-house Swiss Ephemeris + KP (Krishnamurti ayanamsa) — preferred when panchang_source allows it
+    _src = (getattr(settings, "panchang_source", "auto") or "auto").strip().lower()
+    if _src != "divine" and _src in ("auto", "swiss", "inhouse", "local"):
+        from app.services.inhouse_panchang import compute_panchang_dict
+
+        swiss = compute_panchang_dict(now, tzone, lat_num, lon_num)
+        if swiss:
+            print("[Panchang] Using Swiss Ephemeris (Krishnamurti ayanamsa / KP)")
+            return {k: v for k, v in swiss.items() if not str(k).startswith("_")}
+    if _src == "swiss":
+        print("[Panchang] panchang_source=swiss but Swiss compute failed; no Divine fallback")
+        return None
+
+    if not settings.divine_api_key or not settings.divine_access_token:
+        print(
+            "[Panchang] Divine API key or token not set (needed for panchang_source=divine "
+            "or auto fallback). Set Divine_API_Key and Divine_Access_Token in .env"
+        )
+        return None
+
     # Divine find-panchang expects lan codes like tl (Telugu), tm (Tamil), en, hi — not ISO 639-1 alone.
     _FIND_PANCHANG_LAN = {
         "te": "tl",
@@ -611,6 +628,21 @@ async def _fetch_chandramasa_for_today(
     Call Divine API Find Chandramasa to get the current Indian lunar month name in the requested language.
     Returns e.g. Telugu month name when lan='tl', Hindi when lan='hi'. Used for {{mAsE}} in templates.
     """
+    _src = (getattr(settings, "panchang_source", "auto") or "auto").strip().lower()
+    if _src != "divine" and _src in ("auto", "swiss", "inhouse", "local"):
+        try:
+            lat_f = float(latitude) if latitude not in (None, "") else 0.0
+            lon_f = float(longitude) if longitude not in (None, "") else 0.0
+        except (TypeError, ValueError):
+            lat_f, lon_f = 0.0, 0.0
+        from app.services.inhouse_panchang import compute_chandramasa_english
+
+        cm = compute_chandramasa_english(now, timezone_offset_hours, lat_f, lon_f)
+        if cm:
+            return cm
+    if _src == "swiss":
+        return None
+
     if not settings.divine_api_key or not settings.divine_access_token:
         return None
     # Default to English if lan not supported by Chandramasa
@@ -830,20 +862,16 @@ async def _ensure_telugu_for_user(
     return text
 
 
-def _telugu_geographical_reference_from_country(location_country: Optional[str]) -> str:
-    """Return Telugu geographical reference phrase based on current location country (for {{geographical_reference}})."""
-    if not location_country or not location_country.strip():
-        return "భారతవర్షే భరతఖండే జంబూద్వీపే"
-    country_lower = location_country.strip().lower()
-    if "india" in country_lower or "bharat" in country_lower:
-        return "జంబూద్వీపే భారతవర్షే భారతఖండే"
-    if "nepal" in country_lower:
-        return "జంబూద్వీపే నేపాలవర్షే"
-    if "sri lanka" in country_lower or "ceylon" in country_lower:
-        return "లంకాద్వీపే"
-    if "united states" in country_lower or "usa" in country_lower or "america" in country_lower:
-        return "అమెరికా దేశే"
-    return f"{location_country.strip()} దేశే"
+def _telugu_geographical_reference_from_country(
+    location_country: Optional[str],
+    latitude: Optional[Any] = None,
+    longitude: Optional[Any] = None,
+) -> str:
+    """Telugu {{geographical_reference}}: continent-wise dvīpa / varṣa (Puranic), same as template_service."""
+    from app.services.continent_dweepa_varsha import parse_coords, resolve_geographical_reference
+
+    lat_p, lon_p = parse_coords(latitude, longitude)
+    return resolve_geographical_reference("te", location_country, lat_p, lon_p)
 
 
 # English geographical fallbacks -> Telugu (so Telugu template never shows "sacred tIrtha" etc.)
@@ -991,7 +1019,11 @@ async def _generate_telugu_sankalpam(data: dict, pooja_name: Optional[str] = Non
         template = _TELUGU_TEMPLATE_INLINE
 
     # Map data to template variables; convert all English calendar/panchang terms to Telugu
-    geographical_reference = _telugu_geographical_reference_from_country(data.get("location_country"))
+    geographical_reference = _telugu_geographical_reference_from_country(
+        data.get("location_country"),
+        data.get("latitude"),
+        data.get("longitude"),
+    )
     current_location = data.get("current_location") or ""
     primary_geo = _telugu_geographical_feature_from_data(data)
     now = datetime.now()
@@ -1586,6 +1618,11 @@ async def generate_standard_sankalpam(data: dict) -> str:
     karana = data.get("karana")
     weekday = data.get("weekday_name")
 
+    from app.services.continent_dweepa_varsha import parse_coords, resolve_geographical_reference
+
+    _lat, _lon = parse_coords(data.get("latitude"), data.get("longitude"))
+    geo_line = resolve_geographical_reference("hi", data.get("location_country"), _lat, _lon)
+
     sankalpam = f"""
 श्री गणेशाय नमः
 
@@ -1596,7 +1633,7 @@ async def generate_standard_sankalpam(data: dict) -> str:
 वैवस्वतमन्वन्तरे अष्टाविंशतितमे कलियुगे
 प्रथमचरणे
 
-भारतवर्षे भरतखण्डे जम्बूद्वीपे
+{geo_line}
 {data['current_location']} नगरे
 {primary_geo}
 

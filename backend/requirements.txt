@@ -21,3 +21,4 @@ indic-transliteration>=2.0.0  # Latin/IAST to Telugu (and other Indic scripts) f
 openpyxl>=3.1.0  # Pooja calendar Excel (India_Poojas_USA_Muhurta)
 
 pyephem>=4.1
+pyswisseph>=2.10.0

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
@@ -54,9 +54,16 @@ async def ocean(lat: float, lon: float) -> Optional[Dict[str, Any]]:
     Return nearby ocean name when applicable.
     GeoNames endpoint: oceanJSON
     """
-    payload = await _get_json("/oceanJSON", {"lat": lat, "lng": lon})
-    oc = payload.get("ocean")
-    return oc if isinstance(oc, dict) else None
+    # GeoNames returns status error when not near any ocean; that should be a normal "None".
+    try:
+        payload = await _get_json("/oceanJSON", {"lat": lat, "lng": lon})
+        oc = payload.get("ocean")
+        return oc if isinstance(oc, dict) else None
+    except GeoNamesError as e:
+        msg = str(e).lower()
+        if "could not find an ocean" in msg:
+            return None
+        raise
 
 
 async def find_nearby_features(
@@ -73,4 +80,66 @@ async def find_nearby_features(
         "/findNearbyJSON",
         {"lat": lat, "lng": lon, "radius": radius_km, "maxRows": max_rows},
     )
+
+
+def _bbox_from_km(lat: float, lon: float, km: float) -> Tuple[float, float, float, float]:
+    """
+    Rough bounding box around a point.
+    1° lat ~ 111 km; 1° lon ~ 111 km * cos(lat)
+    Returns (north, south, east, west).
+    """
+    dlat = km / 111.0
+    # Avoid division by zero near poles (not relevant for our use, but keep safe)
+    import math
+    denom = max(0.05, math.cos(math.radians(lat)))
+    dlon = km / (111.0 * denom)
+    north = lat + dlat
+    south = lat - dlat
+    east = lon + dlon
+    west = lon - dlon
+    return north, south, east, west
+
+
+async def search_natural_features(
+    lat: float,
+    lon: float,
+    radius_km: float = 60.0,
+    max_rows: int = 20,
+) -> Dict[str, Any]:
+    """
+    Query GeoNames 'searchJSON' for natural features around a point.
+    Returns:
+      {
+        "hydro": [...],     # featureClass H (rivers, lakes, streams, seas)
+        "terrain": [...],   # featureClass T (mountains, hills, ranges)
+      }
+
+    We avoid findNearbyJSON because it often returns buildings (featureClass S).
+    """
+    north, south, east, west = _bbox_from_km(lat, lon, radius_km)
+
+    async def _search(feature_class: str) -> List[Dict[str, Any]]:
+        payload = await _get_json(
+            "/searchJSON",
+            {
+                "featureClass": feature_class,
+                "north": north,
+                "south": south,
+                "east": east,
+                "west": west,
+                "maxRows": max_rows,
+                # Style influences which fields are returned; FULL gives more metadata
+                "style": "FULL",
+                # Order by relevance; the API doesn't guarantee distance ordering, so we post-sort later
+                "orderby": "relevance",
+            },
+        )
+        rows = payload.get("geonames") if isinstance(payload, dict) else None
+        return rows if isinstance(rows, list) else []
+
+    return {
+        "hydro": await _search("H"),
+        "terrain": await _search("T"),
+    }
+
 

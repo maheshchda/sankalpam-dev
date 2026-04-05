@@ -254,11 +254,14 @@ def _get_fallback_panchang(data: Dict) -> Dict[str, str]:
 
 
 async def _get_geographical_reference(data: Dict) -> str:
-    """Geographical reference in Devanagari."""
-    location_country = (data.get("location_country") or "").strip()
-    if not location_country or "india" in location_country.lower():
-        return "जम्बूद्वीपे भारतवर्षे भारतखण्डे"
-    return f"{location_country} देशे"
+    """Geographical reference in Devanagari (continent-wise dvīpa / varṣa)."""
+    from app.services.continent_dweepa_varsha import parse_coords, resolve_geographical_reference
+
+    return resolve_geographical_reference(
+        "sa",
+        data.get("location_country"),
+        *parse_coords(data.get("latitude"), data.get("longitude")),
+    )
 
 
 async def _get_geographical_feature(data: Dict) -> str:
